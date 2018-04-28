@@ -83,24 +83,26 @@ class Tutorial (object):
     Implement switch-like behavior.
     """
 
-    """ # DELETE THIS LINE TO START WORKING ON THIS (AND THE ONE BELOW!) #
-
     # Here's some psuedocode to start you off implementing a learning
     # switch.  You'll need to rewrite it as real Python code.
 
     # Learn the port for the source MAC
-    self.mac_to_port ... <add or update entry>
+    if packet.src not in self.mac_to_port:
+      log.info("Learning that " + str(packet.src) + " is attached at port " + str(packet_in.in_port))
+      self.mac_to_port[packet.src] = packet_in.in_port
 
-    if the port associated with the destination MAC of the packet is known:
+
+    if packet.dst in self.mac_to_port:
+      log.info(str(packet.dst) + " destination known. Sending message to it.")
       # Send packet out the associated port
-      self.resend_packet(packet_in, ...)
+      out_port = self.mac_to_port[packet.dst]
+      self.resend_packet(packet_in, out_port)
 
       # Once you have the above working, try pushing a flow entry
       # instead of resending the packet (comment out the above and
       # uncomment and complete the below.)
 
-      log.debug("Installing flow...")
-      # Maybe the log statement should have source/destination/port?
+      log.info("Installing flow between {} and {}".format(packet.src, out_port))
 
       #msg = of.ofp_flow_mod()
       #
@@ -116,7 +118,6 @@ class Tutorial (object):
       # This part looks familiar, right?
       self.resend_packet(packet_in, of.OFPP_ALL)
 
-    """ # DELETE THIS LINE TO START WORKING ON THIS #
 
 
   def _handle_PacketIn (self, event):
@@ -136,9 +137,9 @@ class Tutorial (object):
     print "Src: " + str(packet.src)
     print "Dest: " + str(packet.dst)
     print "Event port: " + str(event.port)
-    self.act_like_hub(packet, packet_in)
+    # self.act_like_hub(packet, packet_in)
     log.info("packet in")
-    #self.act_like_switch(packet, packet_in)
+    self.act_like_switch(packet, packet_in)
 
 
 

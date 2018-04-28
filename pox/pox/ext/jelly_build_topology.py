@@ -22,11 +22,6 @@ from mininet.log import setLogLevel
 from mininet.clean import cleanup
 from mininet.util import dumpNodeConnections
 
-sys.path.append("../../")
-from pox.ext.jelly_pox import JELLYPOX
-from subprocess import Popen
-from time import sleep, time
-
 from jelly_graph import create_jellyfish_graph
 
 
@@ -67,6 +62,7 @@ def runJellyfishLink():
     '''
     Create and run jellyfish network
     '''
+    # topo = JellyfishTopo(N=4, k=4, r=1, verbose=True)
     topo = JellyfishTopo(N=3, k=3, r=1, verbose=True)
     net = Mininet(topo=topo, host=CPULimitedHost, link = TCLink, controller=JELLYPOX)
     print "Dumping node connections"
