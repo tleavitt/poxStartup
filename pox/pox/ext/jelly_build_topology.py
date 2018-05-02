@@ -29,14 +29,21 @@ class JellyfishTopo( Topo ):
     '''
     Jellyfish topology with multiple links
     '''
-    def __init__( self, N=20, k=12, r=4, verbose=False, **kwargs ):
+    def __init__( self, N=20, k=12, r=8, verbose=False, **kwargs ):
         Topo.__init__( self, **kwargs )
-        self.N = N; self.k = k; self.r = r
-        adjs = create_jellyfish_graph(N, k, r)
 
+        # N: number of switches
+        # k: ports per switch
+        # r: ports per switch for other switches
+
+        self.N = N; self.k = k; self.r = r
+        self.adjs = adjs = create_jellyfish_graph(N, k, r)
+
+
+        n_svs = k - r
         switches = [self.addSwitch('s{}'.format(i)) for i in range(N)]
         servers = [
-            [self.addHost('h{}_{}'.format(i, j)) for j in range(r)]
+            [self.addHost('h{}_{}'.format(i, j)) for j in range(n_svs)]
             for i in range(N)
         ]
         # servers[i] is the list of servers connected to switches[i]
@@ -58,23 +65,33 @@ class JellyfishTopo( Topo ):
                     self.addLink(switches[i], switches[j])
 
 
-def runJellyfishLink():
+def runJellyfishLink(remote_control=False):
     '''
     Create and run jellyfish network
     '''
-    # topo = JellyfishTopo(N=4, k=4, r=1, verbose=True)
-    topo = JellyfishTopo(N=3, k=3, r=1, verbose=True)
-    net = Mininet(topo=topo, host=CPULimitedHost, link = TCLink, controller=JELLYPOX)
-    print "Dumping node connections"
-    dumpNodeConnections(net.hosts)
+    topo = JellyfishTopo(N=4, k=4, r=2, verbose=True)
+    if remote_control:
+        net = Mininet(topo=None,
+                    build=False,
+                    host=CPULimitedHost, link=TCLink)
+        net.addController('c0',
+                controller=RemoteController,
+                ip='127.0.0.1',
+                port=6633) 
+        net.buildFromTopo(topo)
+    else:
+        net = Mininet(topo=topo, host=CPULimitedHost, link=TCLink, controller=JELLYPOX)
+
+    print "Dumping switch connections"
+    dumpNodeConnections(net.switches)
     net.start()
-    net.pingAll()
+    CLI(net)
     net.stop()
 
 def main():
     cleanup()
     setLogLevel('info')
-    runJellyfishLink()
+    runJellyfishLink(remote_control=True)
 
 if __name__ == "__main__":
     main()

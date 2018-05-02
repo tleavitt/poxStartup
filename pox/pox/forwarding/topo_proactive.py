@@ -25,6 +25,19 @@ The forwarding code is based on l2_multi.
 
 Depends on openflow.discovery
 Works with openflow.spanning_tree (sort of)
+
+Look at this: install paths, send tables.
+
+Checkout python mininet API: specifying IP and port 
+  - arguments for add switch, specify.  
+
+Get dictionary of switches, once you discover a switch, 
+install the routing information that you need. 
+
+ECMP: randomly send on up to 8 paths with minimal length
+k-Shortest: choose the k shortest paths from src to dst, send on all of them equally.
+
+
 """
 
 from pox.core import core
@@ -198,6 +211,7 @@ class TopoSwitch (DHCPD):
     msg.match.dl_type = pkt.ethernet.IP_TYPE
     msg.match.nw_proto = pkt.ipv4.UDP_PROTOCOL
     #msg.match.nw_dst = IP_BROADCAST
+    # add 
     msg.match.tp_src = pkt.dhcp.CLIENT_PORT
     msg.match.tp_dst = pkt.dhcp.SERVER_PORT
     msg.actions.append(of.ofp_action_output(port = of.OFPP_CONTROLLER))
@@ -406,9 +420,11 @@ class topo_addressing (object):
     core.listen_to_dependencies(self, listen_args={'openflow':{'priority':0}})
 
   def _handle_ARPHelper_ARPRequest (self, event):
+    print "_handle_ARPHelper_ARPRequest!"
     pass # Just here to make sure we load it
 
   def _handle_openflow_discovery_LinkEvent (self, event):
+    print "_handle_openflow_discovery_LinkEvent!"
     def flip (link):
       return Discovery.Link(link[2],link[3], link[0],link[1])
 
@@ -459,6 +475,7 @@ class topo_addressing (object):
 
 
   def _handle_openflow_ConnectionUp (self, event):
+    print "_handle_openflow_ConnectionUp!"
     sw = switches_by_dpid.get(event.dpid)
 
     if sw is None:
@@ -472,7 +489,7 @@ class topo_addressing (object):
 
 
 
-def launch (debug = False):
+def launch (debug = True):
   core.registerNew(topo_addressing)
   from proto.arp_helper import launch
   launch(eat_packets=False)

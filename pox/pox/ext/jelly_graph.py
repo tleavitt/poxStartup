@@ -3,13 +3,13 @@
 import random
 import pdb
 
-def create_jellyfish_graph(N=20, k=12, r=4):
+def create_jellyfish_graph(N=20, k=12, r=8):
     '''
     N: number of switches
     k: ports per switch
-    r: ports per switch for servers
+    r: ports per switch for other switches
     '''
-    d = k - r # degree of graph
+    d = r # degree of graph
     adjs = [set() for _ in range(N)]
     # adjs[i] is the set of neighbors of switch i
     unfinished_nodes = set([i for i in range(N)]) # nodes with < d neighbors
@@ -66,7 +66,7 @@ def create_jellyfish_graph(N=20, k=12, r=4):
 
     # after adding, there might be one node
     # widh degree <= d - 2
-    if len(unfinished_nodes) == 1:
+    if len(unfinished_nodes) >= 1:
         x = tuple(unfinished_nodes)[0]
         while len(adjs[x]) <= d - 2:
             i = random.choice(tuple(finished_nodes))
@@ -86,8 +86,8 @@ def validate_adjs(adjs, d = 8):
 
 if __name__ == '__main__':
     N = 4; k = 4; r = 3
-    d = k - r
-    print "(N, k, r, d): ", (N, k, r, d)
+    d = r
+    print "(N, k, r): ", (N, k, r)
     adjs = create_jellyfish_graph(N, k, r)
     validate_adjs(adjs, d = d)
     print "Graph validation passed."

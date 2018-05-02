@@ -25,6 +25,10 @@ does (mostly) work. :)
 
 Depends on openflow.discovery
 Works with openflow.spanning_tree
+
+Can copy-paste install path.
+
+Consider projects like D-Cell, 
 """
 
 from pox.core import core
@@ -35,6 +39,7 @@ from collections import defaultdict
 from pox.openflow.discovery import Discovery
 from pox.lib.util import dpid_to_str
 import time
+import pdb
 
 log = core.getLogger()
 
@@ -430,6 +435,7 @@ class l2_multi (EventMixin):
     core.call_when_ready(startup, ('openflow','openflow_discovery'))
 
   def _handle_LinkEvent (self, event):
+    print "_handle_LinkEvent!"
     def flip (link):
       return Discovery.Link(link[2],link[3], link[0],link[1])
 
@@ -472,9 +478,9 @@ class l2_multi (EventMixin):
         # exists in both directions, we consider them connected now.
         if flip(l) in core.openflow_discovery.adjacency:
           # Yup, link goes both ways -- connected!
+          pdb.set_trace()
           adjacency[sw1][sw2] = l.port1
           adjacency[sw2][sw1] = l.port2
-
       # If we have learned a MAC on this port which we now know to
       # be connected to a switch, unlearn it.
       bad_macs = set()
@@ -500,9 +506,9 @@ class l2_multi (EventMixin):
   def _handle_BarrierIn (self, event):
     wp = waiting_paths.pop((event.dpid,event.xid), None)
     if not wp:
-      #log.info("No waiting packet %s,%s", event.dpid, event.xid)
+      log.info("No waiting packet %s,%s", event.dpid, event.xid)
       return
-    #log.debug("Notify waiting packet %s,%s", event.dpid, event.xid)
+    log.debug("Notify waiting packet %s,%s", event.dpid, event.xid)
     wp.notify(event)
 
 
