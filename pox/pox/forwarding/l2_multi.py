@@ -107,7 +107,6 @@ def _calc_paths ():
   #print "--------------------"
   #dump()
 
-
 def _get_raw_path (src, dst):
   """
   Get a raw path (just a list of nodes to traverse)
@@ -478,7 +477,7 @@ class l2_multi (EventMixin):
         # exists in both directions, we consider them connected now.
         if flip(l) in core.openflow_discovery.adjacency:
           # Yup, link goes both ways -- connected!
-          pdb.set_trace()
+          # pdb.set_trace()
           adjacency[sw1][sw2] = l.port1
           adjacency[sw2][sw1] = l.port2
       # If we have learned a MAC on this port which we now know to

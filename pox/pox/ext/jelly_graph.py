@@ -6,7 +6,6 @@ import pdb
 def create_jellyfish_graph(N=20, k=12, r=8):
     '''
     N: number of switches
-    k: ports per switch
     r: ports per switch for other switches
     '''
     d = r # degree of graph
