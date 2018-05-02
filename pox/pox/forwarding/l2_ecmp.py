@@ -290,7 +290,6 @@ class Switch (EventMixin):
       sw.connection.send(msg)
       wp.add_xid(sw.dpid,msg.xid)
 
-  
 
   def install_path (self, dst_sw, last_port, match, event):
     """
