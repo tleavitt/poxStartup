@@ -25,19 +25,19 @@ from mininet.util import dumpNodeConnections
 from jelly_graph import create_jellyfish_graph
 
 
-class JellyfishTopo( Topo ):
+class RegularJellyTopo( Topo ):
     '''
-    Jellyfish topology with multiple links
+    Jellyfish topology with regular graph shape
     '''
     def __init__( self, N=20, k=12, r=8, verbose=False, **kwargs ):
         Topo.__init__( self, **kwargs )
 
         # N: number of switches
         # k: ports per switch
-        # r: ports per switch for other switches
+        # r: ports per switch for other switches (degree of graph)
 
         self.N = N; self.k = k; self.r = r
-        self.adjs = adjs = create_jellyfish_graph(N, k, r)
+        self.adjs = adjs = create_regular_jellyfish_graph(N, r)
 
 
         n_svs = k - r
@@ -63,6 +63,33 @@ class JellyfishTopo( Topo ):
                     if verbose:
                         print "JF: adding link", switches[i], "<->", switches[j]
                     self.addLink(switches[i], switches[j])
+
+class IrregularJellyTopo( Topo ):
+    '''
+    Jellyfish topology with multiple links
+    '''
+    def __init__( self, N=20, n=20, r=8, verbose=False, **kwargs ):
+        Topo.__init__( self, **kwargs )
+
+        # N: number of switches
+        # n: number of hosts
+        # r: ports per switch
+
+        self.N = N; self.n = n; self.r = r
+        self.adjs = adjs = create_irregular_jellyfish_graph(N, n, r)
+
+        # first N nodes are switches, last n are hosts
+        nodes = [self.addSwitch('s{}'.format(i)) for i in range(N)]
+        nodes += [self.addHost('h{}'.format(i) for i in range(n))]
+
+        # connect nodes according to the jellyfish adjacency lists.
+        for i, neighbors in enumerate(adjs):
+            for j in neighbors:
+                # only add links with i < j to avoid double counting.
+                if i < j:
+                    if verbose:
+                        print "JF: adding link", nodes[i], "<->", nodes[j]
+                    self.addLink(nodes[i], nodes[j])
 
 
 def runJellyfishLink(remote_control=False):

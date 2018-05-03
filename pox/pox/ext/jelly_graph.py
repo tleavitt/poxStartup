@@ -222,6 +222,13 @@ def validate_adjs(adjs, d=8, N=20, n=10):
     else:
         return validate_irregular_adjs(adjs, N, n)
 
+
+def adjs_to_switch_map(adjs):
+    return {
+        i: {j: 1 for j in neighbors}
+        for i, neighbors in enumerate(adjs)
+    }    
+
 if __name__ == '__main__':
     N = 40; n = 20; r = 10
     d = r

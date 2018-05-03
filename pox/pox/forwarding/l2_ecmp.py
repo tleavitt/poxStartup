@@ -1,5 +1,5 @@
 # Copyright 2012-2013 James McCauley
-#
+
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at:
@@ -85,17 +85,17 @@ def _calc_ecmp_paths ():
         print a,
       print
 
-  def ecmp_bfs(start):
+  def ecmp_bfs(start, sws, adjacency, path_map):
 
-    distances = {sw: float('inf') for sw in sws} 
-    visited = lambda sw: distances[sw] != float('inf')
+    paths_from_start = path_map[start]
+    distances = lambda sw: paths_from_start[sw][0]
+    visited = lambda sw: distances(sw) != float('inf')
 
     # frontier are the switches we are ready to process, 
     # values are (switch, 
     #             dist to start along this path, 
     #             next hop from start to get to this node.)
-    distances[start] = 0
-    path_map[start][start] = (0, [`])
+    paths_from_start[start] = (0, [])
     frontier = deque((
       (sw, 1, sw) for sw in adjacency[start].keys()
     ))
@@ -105,21 +105,22 @@ def _calc_ecmp_paths ():
 
       if visited(cur):
         # someone beat us to the switch.
-        assert dist >= distances[cur]
-        if dist == distances[cur]:
+        assert dist >= distances(cur)
+        if dist == distances(cur):
           # we found a new path to get from start to cur.
           # if it involves taking a new first hop, update
           # path_map.
-          if hop_start not in path_map[start][cur][1]:
-            path_map[start][cur][1].append(prev)
+          if hop_start not in paths_from_start[cur][1]:
+            paths_from_start[cur][1].append(hop_start)
       else:
         # this is the first time we've visited this node.
-        distances[cur] = dist
-        path_map[start][cur] = (dist, [hop_start])
+        paths_from_start[cur] = (dist, [hop_start])
         unvisited_neighbors = (sw for sw in adjacency[cur].keys() if !visited(sw))
         frontier.extend((
           (sw, dist + 1, cur) for sw in unvisited_neighbors
         ))
+
+    path_map[start] = paths_from_start
 
   sws = switches.values()
   path_map.clear()
@@ -132,25 +133,22 @@ def _calc_ecmp_paths ():
   dump()
 
 
-def _get_raw_path(src, dst):
+def _get_raw_path (src, dst):
   """
-  Get a __random__ raw path (just a list of nodes to traverse)
+  Get a raw path (just a list of nodes to traverse)
   """
-
   if len(path_map) == 0: _calc_paths()
   if src is dst:
     # We're here!
     return []
-
-  if path_map[src][dst][0] is float('inf'):
+  if path_map[src][dst][0] is None:
     return None
-  next_hops = path_map[src][dst][1]
-  if next_hops is []:
+  intermediate = path_map[src][dst][1]
+  if intermediate is None:
     # Directly connected
     return []
-  next_hop = random.choice(next_hops)
-
-  return [next_hop] + _get_raw_path(next_hop, dst)
+  return _get_raw_path(src, intermediate) + [intermediate] + \
+         _get_raw_path(intermediate, dst)
 
 
 def _check_path (p):
