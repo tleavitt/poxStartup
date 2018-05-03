@@ -5,6 +5,7 @@ from mininet.node import Controller, RemoteController, Node
 from mininet.cli import CLI
 from mininet.log import setLogLevel, info
 from mininet.link import Link, Intf
+from mininet.clean import cleanup
  
 def aggNet():
  
@@ -33,7 +34,7 @@ def aggNet():
     net.addLink( h2, s1 )
     net.addLink( h3, s3 )
     net.addLink( h4, s3 )
- 
+
     net.start()
     CLI( net )
     net.stop()
