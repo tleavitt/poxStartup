@@ -3,8 +3,15 @@ from jelly_graph import adjs_to_switch_map, create_regular_jellyfish_graph, crea
 import random 
 import pdb
 
+# [sw1][sw2] -> {distance: [possible next hops from sw1] }
 def init_path_map():
-    return defaultdict(lambda:defaultdict(lambda:(float('inf'),[])))
+    return defaultdict(
+      lambda:defaultdict(
+        lambda:defaultdict(
+          lambda:(float('inf'),[])
+        )
+      )
+    )
 
 def build_path_map_ecmp(adjacency, path_map):
 
@@ -15,14 +22,18 @@ def build_path_map_ecmp(adjacency, path_map):
 def ecmp_bfs(start, adjacency, path_map):
 
   paths_from_start = path_map[start]
-  distances = lambda sw: paths_from_start[sw][0]
-  visited = lambda sw: distances(sw) != float('inf')
+
+  distances = lambda sw: paths_from_start[sw]
+  def min_dist(sw):
+    sort_dists = sorted(distances(sw))
+    return sort_dists[0] if len(sort_dists) > 0 else float('inf')
+  visited = lambda sw: len(distances(sw)) > 0
 
   # frontier are the switches we are ready to process, 
   # values are (switch, 
   #             dist to start along this path, 
   #             next hop from start to get to this node.)
-  paths_from_start[start] = (0, [])
+  paths_from_start[start] = {0: []}
   frontier = deque((
     (sw, 1, sw) for sw in adjacency[start].keys()
   ))
@@ -32,16 +43,17 @@ def ecmp_bfs(start, adjacency, path_map):
 
     if visited(cur):
       # someone beat us to the switch.
-      assert dist >= distances(cur)
-      if dist == distances(cur):
+      md = min_dist(cur)
+      assert dist >= md
+      if dist == md:
         # we found a new path to get from start to cur.
         # if it involves taking a new first hop, update
         # path_map.
-        if hop_start not in paths_from_start[cur][1]:
-          paths_from_start[cur][1].append(hop_start)
+        if hop_start not in paths_from_start[cur][dist]:
+          paths_from_start[cur][dist].append(hop_start)
     else:
       # this is the first time we've visited this node.
-      paths_from_start[cur] = (dist, [hop_start])
+      paths_from_start[cur][dist]= [hop_start]
       unvisited_neighbors = (sw for sw in adjacency[cur].keys() if not visited(sw))
       frontier.extend((
         (sw, dist + 1, hop_start) for sw in unvisited_neighbors
@@ -51,14 +63,19 @@ def ecmp_bfs(start, adjacency, path_map):
   return paths_from_start
 
 
+def min_distance(src, dst, path_map):
+  sort_dists = sorted(path_map[src][dst])
+  return sort_dists[0] if len(sort_dists) > 0 else float('inf')
+
 def get_raw_path(src, dst, path_map):
   """
   Get a __random__ raw path (just a list of nodes to traverse)
   """
 
-  dist, next_hops = path_map[src][dst]
+  dist = min_distance(src, dst, path_map)
   if dist == float('inf'):
     return None
+  next_hops = path_map[src][dst][dist]
   if len(next_hops) == 0:
     # we're here!
     return []
@@ -78,7 +95,6 @@ def get_path(src, dst, path_map):
     return [src] + path
 
 def test_efmp_bfs():
-  # [sw1][sw2] -> (distance, [possible next hop from sw1])
   N = 20; n = 8; r = 8
   print "Checking ecmp routing for irregular jellyfish with:"
   print "  n switches: {}, n hosts: {}, ports per swtch: {}".format(N, n, r)
@@ -93,7 +109,7 @@ def test_efmp_bfs():
   for i in range(N + n):
     for j in range(N + n):
       path_itoj = get_path(i, j, path_map)
-      assert len(path_itoj) == path_map[i][j][0] + 1
+      assert len(path_itoj) == min_distance(i, j, path_map) + 1
       assert check_path(path_itoj, switch_adjs)
 
   print "Check passed."
