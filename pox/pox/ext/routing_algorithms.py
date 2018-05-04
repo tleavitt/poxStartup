@@ -1,6 +1,9 @@
+#!/usr/bin/python
+import sys
 from collections import defaultdict, deque
 from jelly_graph import adjs_to_switch_map, create_regular_jellyfish_graph, create_irregular_jellyfish_graph
 import random 
+import time
 import pdb
 
 # [sw1][sw2] -> {distance: [possible next hops from sw1] }
@@ -13,13 +16,34 @@ def init_path_map():
       )
     )
 
-def build_path_map_ecmp(adjacency, path_map):
+def min_distance(src, dst, path_map):
+  sort_dists = sorted(path_map[src][dst])
+  return sort_dists[0] if len(sort_dists) > 0 else float('inf')
 
-  for i in adjacency.keys():
-    _ = ecmp_bfs(i, adjacency, path_map)
-  return path_map
+'''
+ECMP multipath routing algorithms
+'''
+def ecmp_path_builder(kway=8):
 
-def ecmp_bfs(start, adjacency, path_map):
+  def build_path_map(adjacency, path_map):
+
+    for i in adjacency.keys():
+      _ = ecmp_bfs(i, adjacency, path_map, kway=kway)
+    return path_map
+
+  return build_path_map
+
+build_path_map_ecmp8 = ecmp_path_builder(8)
+build_path_map_ecmp64 = ecmp_path_builder(64)
+
+def ecmp_bfs(start, adjacency, path_map, kway=8):
+  '''
+  Compute the ECMP routes from `start` to
+  all other nodes in the graph `adjacency`,
+  storing the results in path_map.
+  kway is the maximum number of first hops
+  to consider from one port to another.
+  '''
 
   paths_from_start = path_map[start]
 
@@ -47,8 +71,12 @@ def ecmp_bfs(start, adjacency, path_map):
       assert dist >= md
       if dist == md:
         # we found a new path to get from start to cur.
-        # if it involves taking a new first hop, update
-        # path_map.
+        # in k-way ECMP, we consider only k parallel routes
+        # from any src to dst.
+        if len(paths_from_start[cur][dist]) >= kway:
+          continue
+        # else, if new path involves taking a new first hop,
+        # update path_map.
         if hop_start not in paths_from_start[cur][dist]:
           paths_from_start[cur][dist].append(hop_start)
     else:
@@ -62,10 +90,6 @@ def ecmp_bfs(start, adjacency, path_map):
   # path_map[start] = paths_from_start
   return paths_from_start
 
-
-def min_distance(src, dst, path_map):
-  sort_dists = sorted(path_map[src][dst])
-  return sort_dists[0] if len(sort_dists) > 0 else float('inf')
 
 def get_raw_path(src, dst, path_map):
   """
@@ -94,8 +118,8 @@ def get_path(src, dst, path_map):
   else:
     return [src] + path
 
-def test_efmp_bfs():
-  N = 20; n = 8; r = 8
+def test_routing_alg(path_builder=ecmp_path_builder):
+  N = 245; n = 686; r = 14
   print "Checking ecmp routing for irregular jellyfish with:"
   print "  n switches: {}, n hosts: {}, ports per swtch: {}".format(N, n, r)
   path_map = init_path_map()
@@ -103,16 +127,24 @@ def test_efmp_bfs():
   switch_adjs = adjs_to_switch_map(adjs)
 
   # build shortest path tree.
-  for i in range(N + n):
-    _ = ecmp_bfs(i, switch_adjs, path_map)
+  print "Building path map...",
+  sys.stdout.flush()
+  start = time.time()
 
+  path_builder()(switch_adjs, path_map)
+
+  print "done. (took {} s)".format(time.time() - start) 
+
+  print "Checking all paths...",
+  sys.stdout.flush()
+  start = time.time()
   for i in range(N + n):
     for j in range(N + n):
       path_itoj = get_path(i, j, path_map)
       assert len(path_itoj) == min_distance(i, j, path_map) + 1
       assert check_path(path_itoj, switch_adjs)
 
-  print "Check passed."
+  print "check passed. (took {} s)".format(time.time() - start) 
 
 
 def check_path (p, switch_adjs):
@@ -130,4 +162,5 @@ def check_path (p, switch_adjs):
   return True
 
 if __name__ == '__main__':
-  test_efmp_bfs()
+  test_routing_alg()
+  

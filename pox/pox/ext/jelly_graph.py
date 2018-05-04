@@ -230,7 +230,8 @@ def adjs_to_switch_map(adjs):
     }    
 
 if __name__ == '__main__':
-    N = 40; n = 20; r = 10
+    # N = 40; n = 20; r = 10
+    N = 245; n = 686; r = 14
     d = r
     print "(N, n, r): ", (N, n, r)
     adjs = create_jellyfish_graph(N, n, r)
