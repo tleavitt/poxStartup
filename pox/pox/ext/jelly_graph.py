@@ -3,7 +3,7 @@
 import random
 import pdb
 
-def create_regular_jellyfish_graph(N=20, r=8):
+def create_regular_jellyfish_graph(N=20, r=8, k=None):
     '''
     N: number of switches
     r: ports per switch for other switches
@@ -75,6 +75,11 @@ def create_regular_jellyfish_graph(N=20, r=8):
             add_edge(i, x)
             add_edge(x, j)
             # check_unfin_to_fin(x)
+
+    if k is not None:
+        # add k hosts to each switch.
+        for i in range(N):
+            adjs += [set([i]) for _ in range(k)]
 
     return adjs
 

@@ -40,6 +40,7 @@ from pox.openflow.discovery import Discovery
 from pox.lib.util import dpid_to_str
 import time
 import pdb
+import random
 
 #Jaspreet added"
 #Define _select_path
@@ -453,16 +454,17 @@ class l2_multi (EventMixin):
 
   def _select_path(path_map, start_dest, end_dest):
     if (path_map[start_dest][end_dest][0] == 0):
-    print("Source and destination are same")
+      print "Source and destination are same"
 
     else if (path_map[start_dest][end_dest][0] == inf):
-    print("Destination unreachable - Jas")
+      print "Destination unreachable - Jas"
 
     else :
-    range = len(path_map[start_dest][end_dest][0])
-    selected_path = path_map[start_dest][end_dest][1][random.randrange(0, range-1, 1)]
-    #check
-    print(selected_path)
+      # range = len(path_map[start_dest][end_dest][0])
+      # selected_path = path_map[start_dest][end_dest][1][random.randrange(0, range-1, 1)]
+      selected_hop = random.choice()
+      #check
+      print(selected_path)
 
     return selected_path
 
