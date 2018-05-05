@@ -41,12 +41,14 @@ from pox.lib.util import dpid_to_str
 import time
 import pdb
 import random
+import sys
 
 #Jaspreet added"
 #Define _select_path
 sys.path.append("../../")
-from pox.ext.routing_algorithms.py import build_path_map_ecmp
-from pox.ext.routing_algorithms.py import ecmp_bfs
+from pox.ext.routing_algorithms import possible_next_hops
+from pox.ext.routing_algorithms import min_distance
+#from pox.ext.routing_algorithms.py import ecmp_bfs
 
 #from pox.ext.routing_algorithms.py import get_raw_path
 #from pox.ext.routing_algorithms.py import ecmp_bfs
@@ -264,8 +266,8 @@ class Switch (EventMixin):
     msg.actions.append(of.ofp_action_output(port = out_port))
     msg.buffer_id = buf
     if switch.connection == None:
-  print "in install, switch dpid = ", switch.dpid 
-    switch.connection.send(msg)
+  #print "in install, switch dpid = ", switch.dpid 
+      switch.connection.send(msg)
 
   def _install_path (self, p, match, packet_in=None):
     wp = WaitingPath(p, packet_in)
@@ -451,22 +453,25 @@ class l2_multi (EventMixin):
     def flip (link):
       return Discovery.Link(link[2],link[3], link[0],link[1])
 
+#routing_bool is 0 for ecmp and 1 for 8 ksp
+  def _select_path(src, dest, path_map):
 
-  def _select_path(path_map, start_dest, end_dest):
-    if (path_map[start_dest][end_dest][0] == 0):
-      print "Source and destination are same"
+   
+    
+    if (src == dest):
+      log.debug("We have reached the destination!")
 
-    else if (path_map[start_dest][end_dest][0] == inf):
-      print "Destination unreachable - Jas"
+    elif (min_distance(src, dest, path_map) == float('inf')):
+      print "Destination is unreachable"
 
-    else :
-      # range = len(path_map[start_dest][end_dest][0])
-      # selected_path = path_map[start_dest][end_dest][1][random.randrange(0, range-1, 1)]
-      selected_hop = random.choice()
-      #check
-      print(selected_path)
-
-    return selected_path
+    else : 
+      possible_hop = possible_next_hops(src, dst, path_map)
+      
+      
+      range = len(possible_hop)
+      selected_hop = possible_hop[random.randrange(0, range-1, 1)]
+      
+    return selected_hop 
 
 
 
