@@ -96,7 +96,7 @@ def runJellyfishLink(remote_control=False):
     '''
     Create and run jellyfish network
     '''
-    topo = JellyfishTopo(N=4, k=4, r=2, verbose=True)
+    topo = RegularJellyTopo(N=4, k=4, r=2, verbose=True)
     if remote_control:
         net = Mininet(topo=None,
                     build=False,
