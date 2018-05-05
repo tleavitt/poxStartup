@@ -277,6 +277,24 @@ class Switch (EventMixin):
       sw.connection.send(msg)
       wp.add_xid(sw.dpid,msg.xid)
 
+  #routing_bool is 0 for ecmp and 1 for 8 ksp
+  def _select_path(src, dest, path_map):
+    
+    if (src == dest):
+      log.debug("We have reached the destination!")
+
+    elif (min_distance(src, dest, path_map) == float('inf')):
+      print "Destination is unreachable"
+
+    else : 
+      possible_hop = possible_next_hops(src, dst, path_map)
+      
+      
+      range = len(possible_hop)
+      selected_hop = possible_hop[random.randrange(0, range-1, 1)]
+      
+    return selected_hop 
+
   def install_path (self, dst_sw, last_port, match, event):
     """
     Attempts to install a path between this switch and some destination
@@ -403,6 +421,7 @@ class Switch (EventMixin):
       else:
         dest = mac_map[packet.dst]
         match = of.ofp_match.from_packet(packet)
+        # select path here?
         self.install_path(dest[0], dest[1], match, event)
 
   def disconnect (self):
@@ -452,30 +471,6 @@ class l2_multi (EventMixin):
     print "_handle_LinkEvent!"
     def flip (link):
       return Discovery.Link(link[2],link[3], link[0],link[1])
-
-#routing_bool is 0 for ecmp and 1 for 8 ksp
-  def _select_path(src, dest, path_map):
-
-   
-    
-    if (src == dest):
-      log.debug("We have reached the destination!")
-
-    elif (min_distance(src, dest, path_map) == float('inf')):
-      print "Destination is unreachable"
-
-    else : 
-      possible_hop = possible_next_hops(src, dst, path_map)
-      
-      
-      range = len(possible_hop)
-      selected_hop = possible_hop[random.randrange(0, range-1, 1)]
-      
-    return selected_hop 
-
-
-
-
 
     l = event.link
     sw1 = switches[l.dpid1]

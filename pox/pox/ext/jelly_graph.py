@@ -211,16 +211,22 @@ def create_semiregular_jellyfish_graph(N=20, n=10, r=8):
     r: total ports per switch
     '''
     d = r # degree of graph
+    hosts_per_switch = r / 2
+    n_switches_w_hosts = n / hosts_per_switch
     adjs = [set() for _ in range(N + n)]
     # adjs[i] is the set of neighbors of node i
-    all_switches = set(range(N)) # switches have 
+    switches_w_hosts = set(range(switches_w_hosts)) 
+    # the first n_switches_with_hosts switches are the ones connected to the hosts.
     unfinished_nodes = set([i for i in range(N + n)])
         # switches with < d neighbors, or hosts without a server.
     finished_nodes = set()
         # switches with d neighbors or hosts with a server.
 
-    def is_switch(i):
-        return i < N
+    def is_core_switch(i):
+        return i < N and i >= n_switches_w_hosts
+
+    def is_edge_switch(i):
+        return i < n_switches_w_hosts
 
     def is_host(i):
         return i >= N
