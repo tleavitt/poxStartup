@@ -22,7 +22,7 @@ from mininet.log import setLogLevel
 from mininet.clean import cleanup
 from mininet.util import dumpNodeConnections
 
-from jelly_graph import create_jellyfish_graph
+from jelly_graph import create_regular_jellyfish_graph, create_irregular_jellyfish_graph
 
 
 class RegularJellyTopo( Topo ):
@@ -37,7 +37,7 @@ class RegularJellyTopo( Topo ):
         # r: ports per switch for other switches (degree of graph)
 
         self.N = N; self.k = k; self.r = r
-        self.adjs = adjs = create_regular_jellyfish_graph(N, r)
+        self.adjs = adjs = create_regular_jellyfish_graph(N=N, r=r, n=None)
 
 
         n_svs = k - r

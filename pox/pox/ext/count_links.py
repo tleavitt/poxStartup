@@ -108,8 +108,9 @@ def count_links_perm_traffic_dfs(adjs, N=2, n=2, build_path_map=build_path_map_e
 
     print " building path using {}...".format(build_path_map),
     sys.stdout.flush()
+    start = time.time()
     build_path_map(switch_adjs, path_map)
-    print "done."
+    print "done. (took {} s)".format(time.time() - start)
 
     # traffic_map[i] is the host reveiceing from host i 
     srcs = range(N, N + n)
@@ -194,28 +195,29 @@ def main():
     # N = 2; n = 2; r = 2
     # N = 4; n = 4; r = 3
     # N = 10; n = 10; r = 8
-    N = 20; n = 20; r = 8
-    N = 245; n = 686; r = 48
+    # N = 20; n = 20; r = 8
+    # N = 245; n = 686; r = 48
+    N = 98; n = 50; r = 10
     # N = 343; n = 343; r = 14
     # N = 245 - 94; n = 686 + 94; r = 25
     adjs = create_irregular_jellyfish_graph(N, n, r) 
-    # adjs = create_regular_jellyfish_graph(N, r, k=4) 
+    # adjs = create_regular_jellyfish_graph(N, r, n) 
     
     fig, ax = plt.subplots() 
     print "Counting links for ecmp-8."
-    link_counts_8 = count_links_perm_traffic_fixed_paths(adjs, N, n,
+    link_counts_8 = count_links_perm_traffic_dfs(adjs, N, n,
                                  build_path_map = ecmp_path_builder(8))
     add_link_plot(ax, link_counts_8, "ECMP-8")
 
     print "Counting links for ecmp-64."
-    link_counts_64 = count_links_perm_traffic_fixed_paths(adjs, N, n,
+    link_counts_64 = count_links_perm_traffic_dfs(adjs, N, n,
                                  build_path_map = ecmp_path_builder(64))
     add_link_plot(ax, link_counts_64, "ECMP-64")
 
     print "Counting links for ksp-8."
     sys.stdout.flush()
-    link_counts_64 = count_links_perm_traffic_fixed_paths(adjs, N, n,
-                                 build_path_map = ksp_path_builder(4))
+    link_counts_64 = count_links_perm_traffic_dfs(adjs, N, n,
+                                 build_path_map = ksp_path_builder(3))
     add_link_plot(ax, link_counts_64, "KSP-8", linestyle='-')
 
     ax.set_xlabel("Rank of link")
