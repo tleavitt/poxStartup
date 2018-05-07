@@ -25,6 +25,17 @@ from mininet.util import dumpNodeConnections
 from jelly_graph import create_regular_jellyfish_graph, create_irregular_jellyfish_graph
 import pdb
 
+
+def int2dpid( dpid ):
+   try:
+      dpid = hex( dpid )[ 2: ]
+      dpid = '0' * ( 16 - len( dpid ) ) + dpid
+      return dpid
+   except IndexError:
+      raise Exception( 'Unable to derive default datapath ID - '
+                       'please either specify a dpid or use a '
+               'canonical switch name such as s23.' )
+
 class RegularJellyTopo( Topo ):
     '''
     Jellyfish topology with regular graph shape
@@ -109,9 +120,9 @@ class JellyTopo( Topo ):
         self.adjs = adjs = graph_constructor(N=N, n=n, r=r)
 
         # first N nodes are switches, last n are hosts
-        nodes = [self.addSwitch('s{}'.format(i)) for i in range(N)]
+        nodes = [self.addSwitch('s{}'.format(i), dpid=int2dpid(42 + i + 1)) for i in range(N)]
         # nodes += [self.addHost('h{}'.format(i)) for i in range(n)]
-        nodes += [self.addHost('h{}'.format(i), ip='0.0.0.0') for i in range(n)]
+        nodes += [self.addHost('h{}'.format(i), dpid=int2dpid(42 + 1 + i + N)) for i in range(n)]
         # connect nodes according to the jellyfish adjacency lists.
         for i, neighbors in enumerate(adjs):
             for j in neighbors:
@@ -122,11 +133,26 @@ class JellyTopo( Topo ):
                         print i, j
                     self.addLink(nodes[i], nodes[j])
 
+
+def create_dhcp_file(topo):
+    fn = "dhcp_config/{}".format(time())
+    h_names = [str(h) for h in topo.hosts()]
+    with open(fn, 'w') as f:
+        for h in h_names:
+            f.write("{} dhclient {}-eth0\n".format(h, h))
+
+        for h1, h2 in zip(h_names[:-1], h_names[1:]):
+            f.write("{} ping -c 5 {}\n".format(h1, h2))
+    return fn
+
 def runJellyfishLink(remote_control=False):
     '''
     Create and run jellyfish network
     '''
     topo = JellyTopo(N=2, n=2, r=2,
+    # topo = JellyTopo(N=3, n=3, r=3,
+    # topo = JellyTopo(N=10, n=10, r=5,
+    # topo = JellyTopo(N=5, n=4, r=3,
         graph_constructor=create_irregular_jellyfish_graph,
         verbose=True
     )
@@ -145,11 +171,15 @@ def runJellyfishLink(remote_control=False):
     print "Dumping switch connections"
     dumpNodeConnections(net.switches)
 
+    # dhcp_script = create_dhcp_file(topo)
+    # pdb.set_trace()
     net.start()
-    for i, h in enumerate(net.hosts):
-        h.cmd('dhclient eth0')
-    # CLI(net)
-    
+    # for i, h in enumerate(net.hosts):
+    #     h.cmd('dhclient eth0')
+
+    # CLI(net, script=dhcp_script)
+    CLI(net)
+
     net.stop()
 
 def main():

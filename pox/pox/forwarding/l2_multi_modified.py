@@ -78,7 +78,7 @@ FLOW_IDLE_TIMEOUT = 10
 FLOW_HARD_TIMEOUT = 30
 
 # How long is allowable to set up a path?
-PATH_SETUP_TIME = 4
+PATH_SETUP_TIME = 30
 
 
 def _calc_paths ():
@@ -304,13 +304,13 @@ class Switch (EventMixin):
     """
     Attempts to install a path between this switch and some destination
     """
-    p = _get_path(self, dst_sw, event.port, last_port)
-    log.info("their path: %s", str(p))
-    our_p = _our_get_path(self, dst_sw, event.port, last_port)
+    # p = _get_path(self.dpid, dst_sw.dpid, event.port, last_port)
+    # log.info("their path: %s", str(p))
+    our_p = _our_get_path(self.dpid, dst_sw.dpid, event.port, last_port)
     log.info("our path: %s", str(our_p))
 
-    if p is not None and our_p is None:
-      pdb.set_trace()
+    # if p is not None and our_p is None:
+    #   pdb.set_trace()
 
     # for n1, n2 in zip(p, our_p):
     #   assert n1 == n2
@@ -427,7 +427,6 @@ class Switch (EventMixin):
                       dpid_to_str(self.dpid), event.port)
 
 
-    pdb.set_trace()
     if packet.dst.is_multicast:
       log.info("Flood multicast from %s", packet.src)
       flood()
@@ -458,6 +457,7 @@ class Switch (EventMixin):
     self.connection = connection
     self._listeners = self.listenTo(connection)
     self._connected_at = time.time()
+
 
   @property
   def is_holding_down (self):
@@ -492,53 +492,24 @@ class l2_multi (EventMixin):
     sw1 = switches[l.dpid1]
     sw2 = switches[l.dpid2]
 
+
+
     # Invalidate all flows and path info.
     # For link adds, this makes sure that if a new link leads to an
     # improved path, we use it.
     # For link removals, this makes sure that we don't use a
     # path that may have been broken.
     #NOTE: This could be radically improved! (e.g., not *ALL* paths break)
-    clear = of.ofp_flow_mod(command=of.OFPFC_DELETE)
-    for sw in switches.itervalues():
-      if sw.connection is None: continue
-      sw.connection.send(clear)
-    path_map.clear()
 
     if event.removed:
       # This link no longer okay
-      if sw2 in adjacency[sw1]: del adjacency[sw1][sw2]
-      if sw1 in adjacency[sw2]: del adjacency[sw2][sw1]
-
-      # But maybe there's another way to connect these...
-      for ll in core.openflow_discovery.adjacency:
-        if ll.dpid1 == l.dpid1 and ll.dpid2 == l.dpid2:
-          if flip(ll) in core.openflow_discovery.adjacency:
-            # Yup, link goes both ways
-            adjacency[sw1][sw2] = ll.port1
-            adjacency[sw2][sw1] = ll.port2
-            # Fixed -- new link chosen to connect these
-            break
+      return
     else:
-      # If we already consider these nodes connected, we can
-      # ignore this link up.
-      # Otherwise, we might be interested...
-      if adjacency[sw1][sw2] is None:
-        # These previously weren't connected.  If the link
-        # exists in both directions, we consider them connected now.
-        # if flip(l) in core.openflow_discovery.adjacency:
-          # Yup, link goes both ways -- connected!
-          # pdb.set_trace()
-        adjacency[sw1][sw2] = l.port1
-        adjacency[sw2][sw1] = l.port2
-      # If we have learned a MAC on this port which we now know to
-      # be connected to a switch, unlearn it.
-      bad_macs = set()
-      for mac,(sw,port) in mac_map.iteritems():
-        if sw is sw1 and port == l.port1: bad_macs.add(mac)
-        if sw is sw2 and port == l.port2: bad_macs.add(mac)
-      for mac in bad_macs:
-        log.info("Unlearned %s", mac)
-        del mac_map[mac]
+      # check that adjacency has been pre-populated correctly.
+      assert adjacency[sw1.dpid][sw2.dpid] == l.port1
+      assert adjacency[sw2.dpid][sw1.dpid] == l.port2
+
+      return
 
   def _handle_ConnectionUp (self, event):
     sw = switches.get(event.dpid)
@@ -562,6 +533,7 @@ class l2_multi (EventMixin):
 
 
 def launch (): 
+  #TODO: Load adjacency, mac_map, idport_map, path_map from file.
   core.registerNew(l2_multi)
 
   timeout = min(max(PATH_SETUP_TIME, 5) * 2, 15)

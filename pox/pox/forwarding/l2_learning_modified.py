@@ -25,6 +25,13 @@ import pox.openflow.libopenflow_01 as of
 from pox.lib.util import dpid_to_str
 from pox.lib.util import str_to_bool
 import time
+import random
+
+import os
+import sys
+
+sys.path.append("../../")
+from pox.ext.routing_algorithms import possible_next_hops, get_path
 
 log = core.getLogger()
 
@@ -76,10 +83,12 @@ class LearningSwitch (object):
   def __init__ (self, connection, transparent):
     # Switch we'll be adding L2 learning switch capabilities to
     self.connection = connection
+    self.dpid = connection.dpid
     self.transparent = transparent
 
     # Our table
     self.macToPort = {}
+    self.build_macToPort(path_map)
 
     # We want to hear PacketIn messages, so we listen
     # to the connection
@@ -90,6 +99,7 @@ class LearningSwitch (object):
 
     #log.debug("Initializing LearningSwitch, transparent=%s",
     #          str(self.transparent))
+
 
   def _handle_PacketIn (self, event):
     """
@@ -198,5 +208,9 @@ def launch (transparent=False, hold_down=_flood_delay):
     assert _flood_delay >= 0
   except:
     raise RuntimeError("Expected hold-down to be a number")
+
+  '''
+  load: adjacency, mac_map, path_map, maybe as globals
+  '''
 
   core.registerNew(l2_learning, str_to_bool(transparent))
