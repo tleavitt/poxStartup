@@ -314,7 +314,6 @@ class Switch (EventMixin):
 
     # for n1, n2 in zip(p, our_p):
     #   assert n1 == n2
-    # pdb.set_trace()
     p = our_p
     if p is None:
       log.warning("Can't get from %s to %s", match.dl_src, match.dl_dst)
@@ -428,6 +427,7 @@ class Switch (EventMixin):
                       dpid_to_str(self.dpid), event.port)
 
 
+    pdb.set_trace()
     if packet.dst.is_multicast:
       log.info("Flood multicast from %s", packet.src)
       flood()

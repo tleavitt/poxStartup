@@ -110,7 +110,8 @@ class JellyTopo( Topo ):
 
         # first N nodes are switches, last n are hosts
         nodes = [self.addSwitch('s{}'.format(i)) for i in range(N)]
-        nodes += [self.addHost('h{}'.format(i)) for i in range(n)]
+        # nodes += [self.addHost('h{}'.format(i)) for i in range(n)]
+        nodes += [self.addHost('h{}'.format(i), ip='0.0.0.0') for i in range(n)]
         # connect nodes according to the jellyfish adjacency lists.
         for i, neighbors in enumerate(adjs):
             for j in neighbors:
@@ -125,7 +126,7 @@ def runJellyfishLink(remote_control=False):
     '''
     Create and run jellyfish network
     '''
-    topo = JellyTopo(N=3, n=3, r=3,
+    topo = JellyTopo(N=2, n=2, r=2,
         graph_constructor=create_irregular_jellyfish_graph,
         verbose=True
     )
@@ -143,8 +144,12 @@ def runJellyfishLink(remote_control=False):
 
     print "Dumping switch connections"
     dumpNodeConnections(net.switches)
+
     net.start()
-    CLI(net)
+    for i, h in enumerate(net.hosts):
+        h.cmd('dhclient eth0')
+    # CLI(net)
+    
     net.stop()
 
 def main():
