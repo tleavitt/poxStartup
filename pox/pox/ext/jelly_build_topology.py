@@ -25,148 +25,80 @@ from mininet.util import dumpNodeConnections
 from jelly_graph import create_regular_jellyfish_graph, create_irregular_jellyfish_graph
 import pdb
 
+from pox.ext.config import ADJ_FILENAME, MAC_FILENAME, IS_SWITCH_FILENAME, IDPORT_FILENAME
+import cPickle as pickle
 
-def int2dpid( dpid ):
-   try:
-      dpid = hex( dpid )[ 2: ]
-      dpid = '0' * ( 16 - len( dpid ) ) + dpid
-      return dpid
-   except IndexError:
-      raise Exception( 'Unable to derive default datapath ID - '
-                       'please either specify a dpid or use a '
-               'canonical switch name such as s23.' )
+with open(ADJ_FILENAME, 'r+') as af:
+  adjacency = pickle.load(af)
 
-class RegularJellyTopo( Topo ):
-    '''
-    Jellyfish topology with regular graph shape
-    '''
-    def __init__( self, N=20, k=12, r=8, verbose=False, **kwargs ):
-        Topo.__init__( self, **kwargs )
+with open(IS_SWITCH_FILENAME, 'r+') as isf:
+  is_switch = pickle.load(isf)
 
-        # N: number of switches
-        # k: ports per switch
-        # r: ports per switch for other switches (degree of graph)
+with open(IDPORT_FILENAME, 'r+') as idf:
+  idport_map = pickle.load(idf)
 
-        self.N = N; self.k = k; self.r = r
-        self.adjs = adjs = create_regular_jellyfish_graph(N=N, r=r, n=None)
+# class JellyTopo( Topo ):
+#     '''
+#     Jellyfish topology with multiple links
+#     '''
+#     def __init__( self, adjacency,
+#         verbose=False, **kwargs ):
+#         Topo.__init__( self, **kwargs )
 
+#         self.adjacency = adjacency
+#         nodes = {}
 
-        n_svs = k - r
-        switches = [self.addSwitch('s{}'.format(i)) for i in range(N)]
-        servers = [
-            [self.addHost('h{}_{}'.format(i, j)) for j in range(n_svs)]
-            for i in range(N)
-        ]
-        # servers[i] is the list of servers connected to switches[i]
-
-        # first, connect servers to switches
-        for sw, svs in zip(switches, servers):
-            for sv in svs:
-                if verbose:
-                    print "JF: adding link", sw, "<->", sv
-                self.addLink(sw, sv)
-
-        # connect switches according to the jellyfish adjacency lists.
-        for i, neighbors in enumerate(adjs):
-            for j in neighbors:
-                # only add links with i < j to avoid double counting.
-                if i < j:
-                    if verbose:
-                        print "JF: adding link", switches[i], "<->", switches[j]
-                    self.addLink(switches[i], switches[j])
-
-class IrregularJellyTopo( Topo ):
-    '''
-    Jellyfish topology with multiple links
-    '''
-    def __init__( self, N=20, n=20, r=8, verbose=False, **kwargs ):
-        Topo.__init__( self, **kwargs )
-
-        # N: number of switches
-        # n: number of hosts
-        # r: ports per switch
-
-        self.N = N; self.n = n; self.r = r
-        self.adjs = adjs = create_irregular_jellyfish_graph(N, n, r)
-
-        # first N nodes are switches, last n are hosts
-        nodes = [self.addSwitch('s{}'.format(i)) for i in range(N)]
-        nodes += [self.addHost('h{}'.format(i) for i in range(n))]
-
-        # connect nodes according to the jellyfish adjacency lists.
-        for i, neighbors in enumerate(adjs):
-            for j in neighbors:
-                # only add links with i < j to avoid double counting.
-                if i < j:
-                    if verbose:
-                        print "JF: adding link", nodes[i], "<->", nodes[j]
-                    self.addLink(nodes[i], nodes[j])
+#         for dpid in adjacency:
+#             if is_switch[dpid]:
+#                 n = self.addSwitch('s{}'.format(dpid), dpid=dpid)
+#             else:
+#                 n = self.addSwitch('h{}'.format(dpid), dpid=dpid)
+#             nodes[dpid] = n
 
 
-class JellyTopo( Topo ):
-    '''
-    Jellyfish topology with multiple links
-    '''
-    def __init__( self, N=20, n=20, r=8,
-        graph_constructor = create_irregular_jellyfish_graph,
-        verbose=False, **kwargs ):
-        Topo.__init__( self, **kwargs )
+#         for dpid1, neighbors in adjacency.items():
+#             for dpid1, port in neighbors.items():
+#                 idport_map = 
 
-        # N: number of switches
-        # n: number of hosts
-        # r: ports per switch
+def buildJellyFishTopo(net):
+        nodes = {}
 
-        self.N = N; self.n = n; self.r = r
-        self.adjs = adjs = graph_constructor(N=N, n=n, r=r)
-
-        # first N nodes are switches, last n are hosts
-        nodes = [self.addSwitch('s{}'.format(i), dpid=int2dpid(42 + i + 1)) for i in range(N)]
-        # nodes += [self.addHost('h{}'.format(i)) for i in range(n)]
-        nodes += [self.addHost('h{}'.format(i), dpid=int2dpid(42 + 1 + i + N)) for i in range(n)]
-        # connect nodes according to the jellyfish adjacency lists.
-        for i, neighbors in enumerate(adjs):
-            for j in neighbors:
-                # only add links with i < j to avoid double counting.
-                if i < j:
-                    if verbose:
-                        # print "JF: adding link", nodes[i], "<->", nodes[j]
-                        print i, j
-                    self.addLink(nodes[i], nodes[j])
+        for dpid in adjacency:
+            if is_switch[dpid]:
+                n = net.addSwitch('s{}'.format(dpid), dpid=dpid)
+            else:
+                n = net.addHost('h{}'.format(dpid), pid=int(dpid))
+            nodes[dpid] = n
 
 
-def create_dhcp_file(topo):
-    fn = "dhcp_config/{}".format(time())
-    h_names = [str(h) for h in topo.hosts()]
-    with open(fn, 'w') as f:
-        for h in h_names:
-            f.write("{} dhclient {}-eth0\n".format(h, h))
+        for dpid1, neighbors in adjacency.items():
+            for dpid2 in neighbors:
+                port12 = adjacency[dpid1][dpid2]
+                port21 = adjacency[dpid2][dpid1]
+                addr1 = idport_map[(dpid1, port12)]
+                addr2 = idport_map[(dpid2, port21)]
 
-        for h1, h2 in zip(h_names[:-1], h_names[1:]):
-            f.write("{} ping -c 5 {}\n".format(h1, h2))
-    return fn
+                net.addLink(
+                    nodes[dpid1],
+                    nodes[dpid2],
+                    port1 = port12,
+                    port2 = port12,
+                    addr1 = addr1,
+                    addr2 = addr2    
+                )
 
-def runJellyfishLink(remote_control=False):
+def runJellyfishLink():
     '''
     Create and run jellyfish network
     '''
-    topo = JellyTopo(N=2, n=2, r=2,
-    # topo = JellyTopo(N=3, n=3, r=3,
-    # topo = JellyTopo(N=10, n=10, r=5,
-    # topo = JellyTopo(N=5, n=4, r=3,
-        graph_constructor=create_irregular_jellyfish_graph,
-        verbose=True
-    )
-    if remote_control:
-        net = Mininet(topo=None,
-                    build=False,
-                    host=CPULimitedHost, link=TCLink)
-        net.addController('c0',
-                controller=RemoteController,
-                ip='127.0.0.1',
-                port=6633) 
-        net.buildFromTopo(topo)
-    else:
-        net = Mininet(topo=topo, host=CPULimitedHost, link=TCLink, controller=JELLYPOX)
+    net = Mininet(topo=None,
+                build=False,
+                host=CPULimitedHost, link=TCLink)
+    net.addController('c0',
+            controller=RemoteController,
+            ip='127.0.0.1',
+            port=6633) 
+    buildJellyFishTopo(net)
 
     print "Dumping switch connections"
     dumpNodeConnections(net.switches)

@@ -10,6 +10,7 @@ from mininet.clean import cleanup
 # sys.path.append("../../")
 from proactive_pox import PROACTIVEPOX
 from multi_pox import MULTIPOX
+import pdb
 
 def aggNet():
     cleanup()
@@ -34,10 +35,11 @@ def aggNet():
     s2 = net.addSwitch( 's2' )
     s3 = net.addSwitch( 's3' )
  
+    pdb.set_trace()
     net.addLink( s1, s2 )
     net.addLink( s2, s3 )
  
-    net.addLink( h1, s1 )
+    l = net.addLink( h1, s1 )
     net.addLink( h2, s1 )
     net.addLink( h3, s3 )
     net.addLink( h4, s3 )

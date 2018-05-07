@@ -29,6 +29,9 @@ adjacency = defaultdict(lambda:defaultdict(lambda:None))
 # ethaddr -> (dpid, port)
 mac_map = {}
 
+# dpid -> boolean (True if switch, False if host)
+is_switch = {}
+
 # (dpid, port) -> ethaddr
 idport_map = {}
 

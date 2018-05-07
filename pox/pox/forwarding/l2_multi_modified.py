@@ -54,17 +54,15 @@ log = core.getLogger()
 
 # Adjacency map.  [sw1][sw2] -> port from sw1 to sw2
 # adjacency = defaultdict(lambda:defaultdict(lambda:None))
-with open()
-  adjacency = 
+with open(ADJ_FILENAME, 'r+') as af:
+  adjacency = pickle.load(af)
 
 # Switches we know of.  [dpid] -> Switch
 switches = {}
 
 # ethaddr -> (switch, port)
-# mac_map = {}
-
-# [dpid1][dpid2] -> (distance, intermediate)
-path_map = defaultdict(lambda:defaultdict(lambda:(None,None)))
+with open(MAC_FILENAME, 'r+') as mf:
+  mac_map = pickle.load(mf)
 
 our_path_map = init_path_map()
 
@@ -456,7 +454,6 @@ class l2_multi (EventMixin):
 
 
 def launch (): 
-  #TODO: Load adjacency, mac_map, idport_map, path_map from file.
   core.registerNew(l2_multi)
 
   timeout = min(max(PATH_SETUP_TIME, 5) * 2, 15)

@@ -27,7 +27,7 @@ def aggNet():
     s2 = net.addSwitch( 's2' )
     s3 = net.addSwitch( 's3' )
  
-    net.addLink( s1, s2 )
+    l = net.addLink( s1, s2 )
     net.addLink( s2, s3 )
  
     net.addLink( h1, s1 )
