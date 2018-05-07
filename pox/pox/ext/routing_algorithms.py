@@ -118,10 +118,6 @@ build_path_map_ecmp8 = ecmp_path_builder(8)
 build_path_map_ecmp64 = ecmp_path_builder(64)
 
 
-# def ksp_dijkstra(src, dst, adjacency, path_map, k=8):
-
-#   ksp = set()
-
 
 def ksp_bfs(start, adjacency, path_map, k=8):
   '''

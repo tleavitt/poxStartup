@@ -41,6 +41,13 @@ from pox.lib.util import dpid_to_str
 import time
 import pdb
 
+#Define _select_path
+import sys
+sys.path.append("../../")
+from pox.ext.routing_algorithms import possible_next_hops, get_path
+from pox.ext.routing_algorithms import min_distance
+from pox.ext.routing_algorithms import ecmp_path_builder, ksp_path_builder, init_path_map
+
 log = core.getLogger()
 
 # Adjacency map.  [sw1][sw2] -> port from sw1 to sw2
@@ -54,6 +61,11 @@ mac_map = {}
 
 # [sw1][sw2] -> (distance, intermediate)
 path_map = defaultdict(lambda:defaultdict(lambda:(None,None)))
+
+our_path_map = init_path_map()
+
+# Select a routing algorithm:
+build_path_map = ecmp_path_builder(8) 
 
 # Waiting path.  (dpid,xid)->WaitingPath
 waiting_paths = {}
@@ -150,6 +162,32 @@ def _get_path (src, dst, first_port, final_port):
     path = _get_raw_path(src, dst)
     if path is None: return None
     path = [src] + path + [dst]
+
+  # Now add the ports
+  r = []
+  in_port = first_port
+  for s1,s2 in zip(path[:-1],path[1:]):
+    out_port = adjacency[s1][s2]
+    r.append((s1,in_port,out_port))
+    in_port = adjacency[s2][s1]
+  r.append((dst,in_port,final_port))
+
+  assert _check_path(r), "Illegal path!"
+
+  return r
+
+
+def _our_get_path (src, dst, first_port, final_port):
+  """
+  Gets a cooked path -- a list of (node,in_port,out_port)
+  """
+  # Start with a raw path...
+  if len(our_path_map) == 0: 
+    build_path_map(adjacency, our_path_map)
+
+  path = get_path(src, dst, our_path_map)
+  if path is None:
+    return None
 
   # Now add the ports
   r = []
@@ -267,7 +305,17 @@ class Switch (EventMixin):
     Attempts to install a path between this switch and some destination
     """
     p = _get_path(self, dst_sw, event.port, last_port)
+    log.info("their path: %s", str(p))
+    our_p = _our_get_path(self, dst_sw, event.port, last_port)
+    log.info("our path: %s", str(our_p))
+
+    if p is not None and our_p is None:
+      pdb.set_trace()
+
+    # for n1, n2 in zip(p, our_p):
+    #   assert n1 == n2
     # pdb.set_trace()
+    p = our_p
     if p is None:
       log.warning("Can't get from %s to %s", match.dl_src, match.dl_dst)
 
@@ -309,7 +357,7 @@ class Switch (EventMixin):
 
     log.info("Installing path for %s -> %s %04x (%i hops)",
         match.dl_src, match.dl_dst, match.dl_type, len(p))
-    log.info("path: %s", str(p))
+    # log.info("path: %s", str(p))
 
     # We have a path -- install it
     self._install_path(p, match, event.ofp)
@@ -477,11 +525,11 @@ class l2_multi (EventMixin):
       if adjacency[sw1][sw2] is None:
         # These previously weren't connected.  If the link
         # exists in both directions, we consider them connected now.
-        if flip(l) in core.openflow_discovery.adjacency:
+        # if flip(l) in core.openflow_discovery.adjacency:
           # Yup, link goes both ways -- connected!
           # pdb.set_trace()
-          adjacency[sw1][sw2] = l.port1
-          adjacency[sw2][sw1] = l.port2
+        adjacency[sw1][sw2] = l.port1
+        adjacency[sw2][sw1] = l.port2
       # If we have learned a MAC on this port which we now know to
       # be connected to a switch, unlearn it.
       bad_macs = set()

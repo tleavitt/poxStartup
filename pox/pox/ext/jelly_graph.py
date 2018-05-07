@@ -4,7 +4,7 @@ import random
 from math import floor
 import pdb
 
-def create_regular_jellyfish_graph(N=20, r=8, n=None):
+def create_regular_jellyfish_graph(N=20, n=None, r=8):
     '''
     N: number of switches
     r: ports per switch for other switches

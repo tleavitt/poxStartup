@@ -23,7 +23,7 @@ from mininet.clean import cleanup
 from mininet.util import dumpNodeConnections
 
 from jelly_graph import create_regular_jellyfish_graph, create_irregular_jellyfish_graph
-
+import pdb
 
 class RegularJellyTopo( Topo ):
     '''
@@ -92,11 +92,43 @@ class IrregularJellyTopo( Topo ):
                     self.addLink(nodes[i], nodes[j])
 
 
+class JellyTopo( Topo ):
+    '''
+    Jellyfish topology with multiple links
+    '''
+    def __init__( self, N=20, n=20, r=8,
+        graph_constructor = create_irregular_jellyfish_graph,
+        verbose=False, **kwargs ):
+        Topo.__init__( self, **kwargs )
+
+        # N: number of switches
+        # n: number of hosts
+        # r: ports per switch
+
+        self.N = N; self.n = n; self.r = r
+        self.adjs = adjs = graph_constructor(N=N, n=n, r=r)
+
+        # first N nodes are switches, last n are hosts
+        nodes = [self.addSwitch('s{}'.format(i)) for i in range(N)]
+        nodes += [self.addHost('h{}'.format(i)) for i in range(n)]
+        # connect nodes according to the jellyfish adjacency lists.
+        for i, neighbors in enumerate(adjs):
+            for j in neighbors:
+                # only add links with i < j to avoid double counting.
+                if i < j:
+                    if verbose:
+                        # print "JF: adding link", nodes[i], "<->", nodes[j]
+                        print i, j
+                    self.addLink(nodes[i], nodes[j])
+
 def runJellyfishLink(remote_control=False):
     '''
     Create and run jellyfish network
     '''
-    topo = RegularJellyTopo(N=4, k=4, r=2, verbose=True)
+    topo = JellyTopo(N=3, n=3, r=3,
+        graph_constructor=create_irregular_jellyfish_graph,
+        verbose=True
+    )
     if remote_control:
         net = Mininet(topo=None,
                     build=False,

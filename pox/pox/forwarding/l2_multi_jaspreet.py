@@ -46,14 +46,14 @@ import sys
 #Jaspreet added"
 #Define _select_path
 sys.path.append("../../")
-from pox.ext.routing_algorithms import possible_next_hops
+from pox.ext.routing_algorithms import possible_next_hops, get_path
 from pox.ext.routing_algorithms import min_distance
-#from pox.ext.routing_algorithms.py import ecmp_bfs
+from pox.ext.routing_algorithms import ecmp_path_builder, ksp_path_builder, init_path_map
+# from pox.ext.routing_algorithms.py import ecmp_bfs
 
 #from pox.ext.routing_algorithms.py import get_raw_path
 #from pox.ext.routing_algorithms.py import ecmp_bfs
 ##
-
 
 
 log = core.getLogger()
@@ -67,8 +67,13 @@ switches = {}
 # ethaddr -> (switch, port)
 mac_map = {}
 
-# [sw1][sw2] -> (distance, intermediate)
-path_map = defaultdict(lambda:defaultdict(lambda:(None,None)))
+# [sw1][sw2] -> {distance: [possible next hops from sw1] }
+path_map = init_path_map()
+
+# Select a routing algorithm:
+build_path_map = ecmp_path_builder(8) 
+# build_path_map = ecmp_path_builder(64) 
+# build_path_map = ksp_path_builder(8) 
 
 # Waiting path.  (dpid,xid)->WaitingPath
 waiting_paths = {}
@@ -82,63 +87,6 @@ FLOW_HARD_TIMEOUT = 30
 
 # How long is allowable to set up a path?
 PATH_SETUP_TIME = 4
-
-
-def _calc_paths ():
-  """
-  Essentially Floyd-Warshall algorithm
-  """
-
-  def dump ():
-    for i in sws:
-      for j in sws:
-        a = path_map[i][j][0]
-        #a = adjacency[i][j]
-        if a is None: a = "*"
-        print a,
-      print
-
-  sws = switches.values()
-  path_map.clear()
-  for k in sws:
-    for j,port in adjacency[k].iteritems():
-      if port is None: continue
-      path_map[k][j] = (1,None)
-    path_map[k][k] = (0,None) # distance, intermediate
-
-  #dump()
-
-  for k in sws:
-    for i in sws:
-      for j in sws:
-        if path_map[i][k][0] is not None:
-          if path_map[k][j][0] is not None:
-            # i -> k -> j exists
-            ikj_dist = path_map[i][k][0]+path_map[k][j][0]
-            if path_map[i][j][0] is None or ikj_dist < path_map[i][j][0]:
-              # i -> k -> j is better than existing
-              path_map[i][j] = (ikj_dist, k)
-
-  #print "--------------------"
-  #dump()
-
-def _get_raw_path (src, dst):
-  """
-  Get a raw path (just a list of nodes to traverse)
-  """
-  if len(path_map) == 0: _calc_paths()
-  if src is dst:
-    # We're here!
-    return []
-  if path_map[src][dst][0] is None:
-    return None
-  intermediate = path_map[src][dst][1]
-  if intermediate is None:
-    # Directly connected
-    return []
-  return _get_raw_path(src, intermediate) + [intermediate] + \
-         _get_raw_path(intermediate, dst)
-
 
 def _check_path (p):
   """
@@ -154,17 +102,54 @@ def _check_path (p):
   return True
 
 
+def _get_next_hops(src, dst):
+  if len(path_map) == 0: 
+    build_path_map(adjacency, path_map)
+  return possible_next_hops(src, dst, path_map)  
+
+
+def _select_hop(src, dst, first_port, final_port):
+  pdb.set_trace()
+  if (src == dst):
+    path = [src]
+    r.append((dst, first_port, final_port))
+
+  elif (min_distance(src, dst, path_map) == float('inf')):
+    return None
+  else: 
+    possible_hops = _get_next_hops(src, dst)    
+    selected_hop = random.choice(possible_hops)
+    # rn = len(possible_hop)
+    # selected_hop = possible_hop[random.randrange(0, rn-1, 1)]
+    path = [src, selected_hop]
+
+    r = []
+    r.append((src, first_port, adjacency[src][selected_hop]))
+
+    # Now add the ports #TODO: get rid of the useless loop
+  #   r = []
+  #   in_port = first_port
+  #   for s1,s2 in zip(path[:-1],path[1:]):
+  #     out_port = adjacency[s1][s2]
+  #     r.append((s1,in_port,out_port))
+  #     in_port = adjacency[s2][s1]
+  # # r.append((dst,in_port,final_port))
+
+  assert _check_path(r), "Illegal path!"
+
+  return r
+
 def _get_path (src, dst, first_port, final_port):
   """
   Gets a cooked path -- a list of (node,in_port,out_port)
   """
   # Start with a raw path...
-  if src == dst:
-    path = [src]
-  else:
-    path = _get_raw_path(src, dst)
-    if path is None: return None
-    path = [src] + path + [dst]
+  if len(path_map) == 0: 
+    build_path_map(adjacency, path_map)
+
+  path = get_path(src, dst, path_map)
+  if path is None:
+    return None
 
   # Now add the ports
   r = []
@@ -215,7 +200,7 @@ class WaitingPath (object):
     if len(self.xids) == 0:
       # Done!
       if self.packet:
-        log.debug("Sending delayed packet out %s"
+        log.info("Sending delayed packet out %s"
                   % (dpid_to_str(self.first_switch),))
         msg = of.ofp_packet_out(data=self.packet,
             action=of.ofp_action_output(port=of.OFPP_TABLE))
@@ -277,29 +262,14 @@ class Switch (EventMixin):
       sw.connection.send(msg)
       wp.add_xid(sw.dpid,msg.xid)
 
-  #routing_bool is 0 for ecmp and 1 for 8 ksp
-  def _select_path(src, dest, path_map):
-    
-    if (src == dest):
-      log.debug("We have reached the destination!")
 
-    elif (min_distance(src, dest, path_map) == float('inf')):
-      print "Destination is unreachable"
-
-    else : 
-      possible_hop = possible_next_hops(src, dst, path_map)
-      
-      
-      range = len(possible_hop)
-      selected_hop = possible_hop[random.randrange(0, range-1, 1)]
-      
-    return selected_hop 
 
   def install_path (self, dst_sw, last_port, match, event):
     """
     Attempts to install a path between this switch and some destination
     """
     p = _get_path(self, dst_sw, event.port, last_port)
+    # p = _select_hop(self, dst_sw, event.port, last_port)
     if p is None:
       log.warning("Can't get from %s to %s", match.dl_src, match.dl_dst)
 
@@ -308,7 +278,7 @@ class Switch (EventMixin):
       if (match.dl_type == pkt.ethernet.IP_TYPE and
           event.parsed.find('ipv4')):
         # It's IP -- let's send a destination unreachable
-        log.debug("Dest unreachable (%s -> %s)",
+        log.info("Dest unreachable (%s -> %s)",
                   match.dl_src, match.dl_dst)
 
         from pox.lib.addresses import EthAddr
@@ -339,8 +309,9 @@ class Switch (EventMixin):
 
       return
 
-    log.debug("Installing path for %s -> %s %04x (%i hops)",
+    log.info("Installing path for %s -> %s %04x (%i hops)",
         match.dl_src, match.dl_dst, match.dl_type, len(p))
+    log.info("path: %s", str(p))
 
     # We have a path -- install it
     self._install_path(p, match, event.ofp)
@@ -371,8 +342,9 @@ class Switch (EventMixin):
         event.ofp.buffer_id = None # Mark is dead
         msg.in_port = event.port
         self.connection.send(msg)
-  
+    
     packet = event.parsed
+
 
     loc = (self, event.port) # Place we saw this ethaddr
     oldloc = mac_map.get(packet.src) # Place we last saw this ethaddr
@@ -384,17 +356,17 @@ class Switch (EventMixin):
     if oldloc is None:
       if packet.src.is_multicast == False:
         mac_map[packet.src] = loc # Learn position for ethaddr
-        log.debug("Learned %s at %s.%i", packet.src, loc[0], loc[1])
+        log.info("Learned %s at %s.%i", packet.src, loc[0], loc[1])
     elif oldloc != loc:
       # ethaddr seen at different place!
       if core.openflow_discovery.is_edge_port(loc[0].dpid, loc[1]):
         # New place is another "plain" port (probably)
-        log.debug("%s moved from %s.%i to %s.%i?", packet.src,
+        log.info("%s moved from %s.%i to %s.%i?", packet.src,
                   dpid_to_str(oldloc[0].dpid), oldloc[1],
                   dpid_to_str(   loc[0].dpid),    loc[1])
         if packet.src.is_multicast == False:
           mac_map[packet.src] = loc # Learn position for ethaddr
-          log.debug("Learned %s at %s.%i", packet.src, loc[0], loc[1])
+          log.info("Learned %s at %s.%i", packet.src, loc[0], loc[1])
       elif packet.dst.is_multicast == False:
         # New place is a switch-to-switch port!
         # Hopefully, this is a packet we're flooding because we didn't
@@ -412,21 +384,20 @@ class Switch (EventMixin):
 
 
     if packet.dst.is_multicast:
-      log.debug("Flood multicast from %s", packet.src)
+      log.info("Flood multicast from %s", packet.src)
       flood()
     else:
       if packet.dst not in mac_map:
-        log.debug("%s unknown -- flooding" % (packet.dst,))
+        log.info("%s unknown -- flooding" % (packet.dst,))
         flood()
       else:
         dest = mac_map[packet.dst]
         match = of.ofp_match.from_packet(packet)
-        # select path here?
         self.install_path(dest[0], dest[1], match, event)
 
   def disconnect (self):
     if self.connection is not None:
-      log.debug("Disconnect %s" % (self.connection,))
+      log.info("Disconnect %s" % (self.connection,))
       self.connection.removeListeners(self._listeners)
       self.connection = None
       self._listeners = None
@@ -438,7 +409,7 @@ class Switch (EventMixin):
     if self.ports is None:
       self.ports = connection.features.ports
     self.disconnect()
-    log.debug("Connect %s" % (connection,))
+    log.info("Connect %s" % (connection,))
     self.connection = connection
     self._listeners = self.listenTo(connection)
     self._connected_at = time.time()
@@ -452,6 +423,15 @@ class Switch (EventMixin):
 
   def _handle_ConnectionDown (self, event):
     self.disconnect()
+
+  def _handle_PortStatus (self, event):
+    if event.added:
+        action = "added"
+    elif event.deleted:
+        action = "removed"
+    else:
+        action = "modified"
+    print "Port %s on Switch %s has been %s." % (event.port, event.dpid, action)
 
 
 class l2_multi (EventMixin):
@@ -468,7 +448,7 @@ class l2_multi (EventMixin):
     core.call_when_ready(startup, ('openflow','openflow_discovery'))
 
   def _handle_LinkEvent (self, event):
-    print "_handle_LinkEvent!"
+    log.info("_handle_LinkEvent!")
     def flip (link):
       return Discovery.Link(link[2],link[3], link[0],link[1])
 
@@ -521,7 +501,7 @@ class l2_multi (EventMixin):
         if sw is sw1 and port == l.port1: bad_macs.add(mac)
         if sw is sw2 and port == l.port2: bad_macs.add(mac)
       for mac in bad_macs:
-        log.debug("Unlearned %s", mac)
+        log.info("Unlearned %s", mac)
         del mac_map[mac]
 
   def _handle_ConnectionUp (self, event):
@@ -541,10 +521,8 @@ class l2_multi (EventMixin):
     if not wp:
       log.info("No waiting packet %s,%s", event.dpid, event.xid)
       return
-    log.debug("Notify waiting packet %s,%s", event.dpid, event.xid)
+    log.info("Notify waiting packet %s,%s", event.dpid, event.xid)
     wp.notify(event)
-
-
 
 
 def launch (): 
