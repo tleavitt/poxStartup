@@ -47,19 +47,23 @@ sys.path.append("../../")
 from pox.ext.routing_algorithms import possible_next_hops, get_path
 from pox.ext.routing_algorithms import min_distance
 from pox.ext.routing_algorithms import ecmp_path_builder, ksp_path_builder, init_path_map
+from pox.ext.config import ADJ_FILENAME, MAC_FILENAME
+import cPickle as pickle
 
 log = core.getLogger()
 
 # Adjacency map.  [sw1][sw2] -> port from sw1 to sw2
-adjacency = defaultdict(lambda:defaultdict(lambda:None))
+# adjacency = defaultdict(lambda:defaultdict(lambda:None))
+with open()
+  adjacency = 
 
 # Switches we know of.  [dpid] -> Switch
 switches = {}
 
 # ethaddr -> (switch, port)
-mac_map = {}
+# mac_map = {}
 
-# [sw1][sw2] -> (distance, intermediate)
+# [dpid1][dpid2] -> (distance, intermediate)
 path_map = defaultdict(lambda:defaultdict(lambda:(None,None)))
 
 our_path_map = init_path_map()
@@ -81,61 +85,6 @@ FLOW_HARD_TIMEOUT = 30
 PATH_SETUP_TIME = 30
 
 
-def _calc_paths ():
-  """
-  Essentially Floyd-Warshall algorithm
-  """
-
-  def dump ():
-    for i in sws:
-      for j in sws:
-        a = path_map[i][j][0]
-        #a = adjacency[i][j]
-        if a is None: a = "*"
-        print a,
-      print
-
-  sws = switches.values()
-  path_map.clear()
-  for k in sws:
-    for j,port in adjacency[k].iteritems():
-      if port is None: continue
-      path_map[k][j] = (1,None)
-    path_map[k][k] = (0,None) # distance, intermediate
-
-  #dump()
-
-  for k in sws:
-    for i in sws:
-      for j in sws:
-        if path_map[i][k][0] is not None:
-          if path_map[k][j][0] is not None:
-            # i -> k -> j exists
-            ikj_dist = path_map[i][k][0]+path_map[k][j][0]
-            if path_map[i][j][0] is None or ikj_dist < path_map[i][j][0]:
-              # i -> k -> j is better than existing
-              path_map[i][j] = (ikj_dist, k)
-
-  #print "--------------------"
-  #dump()
-
-def _get_raw_path (src, dst):
-  """
-  Get a raw path (just a list of nodes to traverse)
-  """
-  if len(path_map) == 0: _calc_paths()
-  if src is dst:
-    # We're here!
-    return []
-  if path_map[src][dst][0] is None:
-    return None
-  intermediate = path_map[src][dst][1]
-  if intermediate is None:
-    # Directly connected
-    return []
-  return _get_raw_path(src, intermediate) + [intermediate] + \
-         _get_raw_path(intermediate, dst)
-
 
 def _check_path (p):
   """
@@ -149,32 +98,6 @@ def _check_path (p):
     if adjacency[b[0]][a[0]] != b[1]:
       return False
   return True
-
-
-def _get_path (src, dst, first_port, final_port):
-  """
-  Gets a cooked path -- a list of (node,in_port,out_port)
-  """
-  # Start with a raw path...
-  if src == dst:
-    path = [src]
-  else:
-    path = _get_raw_path(src, dst)
-    if path is None: return None
-    path = [src] + path + [dst]
-
-  # Now add the ports
-  r = []
-  in_port = first_port
-  for s1,s2 in zip(path[:-1],path[1:]):
-    out_port = adjacency[s1][s2]
-    r.append((s1,in_port,out_port))
-    in_port = adjacency[s2][s1]
-  r.append((dst,in_port,final_port))
-
-  assert _check_path(r), "Illegal path!"
-
-  return r
 
 
 def _our_get_path (src, dst, first_port, final_port):
