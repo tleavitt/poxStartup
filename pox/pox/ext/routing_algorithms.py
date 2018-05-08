@@ -16,6 +16,17 @@ def init_path_map():
       )
     )
 
+# discard default dicts to make path_map pickle-able
+def path_map_to_dict(path_map):
+  pm = {}
+  for ka, a in path_map.items():
+    pm[ka] = {}
+    for kb, b in a.items():
+      pm[ka][kb] = {}
+      for kc, c in b.items():
+        pm[ka][kb][kc] = c
+  return pm
+
 def min_distance(src, dst, path_map):
   sort_dists = sorted(path_map[src][dst])
   return sort_dists[0] if len(sort_dists) > 0 else float('inf')

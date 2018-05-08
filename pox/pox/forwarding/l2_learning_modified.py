@@ -88,7 +88,6 @@ class LearningSwitch (object):
 
     # Our table
     self.macToPort = {}
-    self.build_macToPort(path_map)
 
     # We want to hear PacketIn messages, so we listen
     # to the connection
@@ -97,8 +96,8 @@ class LearningSwitch (object):
     # We just use this to know when to log a helpful message
     self.hold_down_expired = _flood_delay == 0
 
-    #log.debug("Initializing LearningSwitch, transparent=%s",
-    #          str(self.transparent))
+    log.debug("Initializing LearningSwitch, transparent=%s",
+             str(self.transparent))
 
 
   def _handle_PacketIn (self, event):

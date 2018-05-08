@@ -196,8 +196,8 @@ def main():
     # N = 4; n = 4; r = 3
     # N = 10; n = 10; r = 8
     # N = 20; n = 20; r = 8
-    # N = 245; n = 686; r = 48
-    N = 98; n = 50; r = 10
+    N = 245; n = 686; r = 48
+    # N = 98; n = 50; r = 10
     # N = 343; n = 343; r = 14
     # N = 245 - 94; n = 686 + 94; r = 25
     adjs = create_irregular_jellyfish_graph(N, n, r) 

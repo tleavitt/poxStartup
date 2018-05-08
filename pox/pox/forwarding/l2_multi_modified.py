@@ -41,13 +41,15 @@ from pox.lib.util import dpid_to_str
 import time
 import pdb
 
+_dpid_to_str = lambda dpid: dpid_to_str(dpid)
+
 #Define _select_path
 import sys
 sys.path.append("../../")
 from pox.ext.routing_algorithms import possible_next_hops, get_path
 from pox.ext.routing_algorithms import min_distance
 from pox.ext.routing_algorithms import ecmp_path_builder, ksp_path_builder, init_path_map
-from pox.ext.config import ADJ_FILENAME, MAC_FILENAME
+from pox.ext.config import ADJ_FILENAME, MAC_FILENAME, PATHMAP_FILENAME
 import cPickle as pickle
 
 log = core.getLogger()
@@ -60,11 +62,13 @@ with open(ADJ_FILENAME, 'r+') as af:
 # Switches we know of.  [dpid] -> Switch
 switches = {}
 
-# ethaddr -> (switch, port)
+# ethaddr -> (dpid, port)
 with open(MAC_FILENAME, 'r+') as mf:
   mac_map = pickle.load(mf)
 
-our_path_map = init_path_map()
+# path map
+with open(PATHMAP_FILENAME, 'r+') as pmf:
+  our_path_map = pickle.load(pmf)
 
 # Select a routing algorithm:
 build_path_map = ecmp_path_builder(8) 
@@ -110,14 +114,19 @@ def _our_get_path (src, dst, first_port, final_port):
   if path is None:
     return None
 
-  # Now add the ports
+  # Now add the ports and switches?
   r = []
   in_port = first_port
-  for s1,s2 in zip(path[:-1],path[1:]):
-    out_port = adjacency[s1][s2]
-    r.append((s1,in_port,out_port))
-    in_port = adjacency[s2][s1]
-  r.append((dst,in_port,final_port))
+
+  for dpid1, dpid2 in zip(path[:-1],path[1:]):
+
+    out_port = adjacency[dpid1][dpid2]
+
+    r.append((switches[dpid1], in_port, out_port))
+
+    in_port = adjacency[dpid2][dpid1]
+
+  r.append((switches[dst], in_port, final_port))
 
   assert _check_path(r), "Illegal path!"
 
@@ -136,7 +145,7 @@ class WaitingPath (object):
     """
     self.expires_at = time.time() + PATH_SETUP_TIME
     self.path = path
-    self.first_switch = path[0][0].dpid
+    self.first_switch = switches[path[0][0]].dpid
     self.xids = set()
     self.packet = packet
 
@@ -160,7 +169,7 @@ class WaitingPath (object):
       # Done!
       if self.packet:
         log.info("Sending delayed packet out %s"
-                  % (dpid_to_str(self.first_switch),))
+                  % (_dpid_to_str(self.first_switch),))
         msg = of.ofp_packet_out(data=self.packet,
             action=of.ofp_action_output(port=of.OFPP_TABLE))
         core.openflow.sendToDPID(self.first_switch, msg)
@@ -199,7 +208,7 @@ class Switch (EventMixin):
     self._connected_at = None
 
   def __repr__ (self):
-    return dpid_to_str(self.dpid)
+    return _dpid_to_str(self.dpid)
 
   def _install (self, switch, in_port, out_port, match, buf = None):
     msg = of.ofp_flow_mod()
@@ -249,7 +258,7 @@ class Switch (EventMixin):
 
         from pox.lib.addresses import EthAddr
         e = pkt.ethernet()
-        e.src = EthAddr(dpid_to_str(self.dpid)) #FIXME: Hmm...
+        e.src = EthAddr(_dpid_to_str(self.dpid)) #FIXME: Hmm...
         e.dst = match.dl_src
         e.type = e.IP_TYPE
         ipp = pkt.ipv4()
@@ -311,7 +320,7 @@ class Switch (EventMixin):
 	
     packet = event.parsed
 
-    loc = (self, event.port) # Place we saw this ethaddr
+    loc = (self.dpid, event.port) # Place we saw this ethaddr
     oldloc = mac_map.get(packet.src) # Place we last saw this ethaddr
 
     if packet.effective_ethertype == packet.LLDP_TYPE:
@@ -320,15 +329,15 @@ class Switch (EventMixin):
 
     if oldloc is None:
       if packet.src.is_multicast == False:
-        mac_map[packet.src] = loc # Learn position for ethaddr
-        log.info("Learned %s at %s.%i", packet.src, loc[0], loc[1])
+        # mac_map[packet.src] = loc # Learn position for ethaddr
+        log.info("Unecpected mac: %s at %s.%i", packet.src, loc[0], loc[1])
     elif oldloc != loc:
       # ethaddr seen at different place!
-      if core.openflow_discovery.is_edge_port(loc[0].dpid, loc[1]):
+      if core.openflow_discovery.is_edge_port(switches[loc[0]].dpid, loc[1]):
         # New place is another "plain" port (probably)
         log.info("%s moved from %s.%i to %s.%i?", packet.src,
-                  dpid_to_str(oldloc[0].dpid), oldloc[1],
-                  dpid_to_str(   loc[0].dpid),    loc[1])
+                  _dpid_to_str(switches[oldloc[0]].dpid), oldloc[1],
+                  _dpid_to_str(switches[loc[0]].dpid),    loc[1])
         if packet.src.is_multicast == False:
           mac_map[packet.src] = loc # Learn position for ethaddr
           log.info("Learned %s at %s.%i", packet.src, loc[0], loc[1])
@@ -345,20 +354,19 @@ class Switch (EventMixin):
           # that something has gone wrong.
           log.warning("Packet from %s to known destination %s arrived "
                       "at %s.%i without flow", packet.src, packet.dst,
-                      dpid_to_str(self.dpid), event.port)
-
+                      _dpid_to_str(self.dpid), event.port)
 
     if packet.dst.is_multicast:
-      log.info("Flood multicast from %s", packet.src)
-      flood()
+      log.info("Got multicast from %s, ignoring", packet.src)
+      # flood()
     else:
       if packet.dst not in mac_map:
-        log.info("%s unknown -- flooding" % (packet.dst,))
-        flood()
+        log.info("%s unknown -- dropping" % (packet.dst,))
+        # flood()
       else:
-        dest = mac_map[packet.dst]
+        dest_dpid, dest_port = mac_map[packet.dst]
         match = of.ofp_match.from_packet(packet)
-        self.install_path(dest[0], dest[1], match, event)
+        self.install_path(switches[dest_dpid], dest_port, match, event)
 
   def disconnect (self):
     if self.connection is not None:
