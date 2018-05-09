@@ -1,0 +1,5 @@
+('Total seconds:', 5557.5)
+('Total txmitted bytes:', 15121081)
+('Total rxvd bytes: ', 15841566)
+('Average throughput (kbps): ', 22803.873684210525)
+('Percent utilisation is: ', 131.9641462867057)

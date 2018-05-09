@@ -1,10 +1,11 @@
 import json
 import pdb
+#17695084.0889
 
-
-# with open('ecmp8_N50.json', 'r') as f:
-with open('ecmp8_N50_n10_r10_flow8_lr15M_pkts8K', 'r') as f:
-#with open('ecmp64.json', 'r') as f:
+#with open('ecmp8_N50.json', 'r') as f:
+#with open('ecmp8_N50_n10_r10_flow8_lr15M_pkts8K', 'r') as f:
+#with open('ksp8.json', 'r') as f:
+with open('ksp8_N50_n10_r10_flow8_lr15M_pkts8K', 'r') as f:
 #with open('ecmp64_N50_n10_r10_lr15M_pkts8K', 'r') as f:
 #with open('ecmp8_N100_n10_r10.pretty', 'r') as f:
 #with open('ecmp8_N100_n10_r10.pretty', 'r') as f:
@@ -38,11 +39,11 @@ with open('ecmp8_N50_n10_r10_flow8_lr15M_pkts8K', 'r') as f:
     print("Total seconds:", seconds)
     print("Total txmitted bytes:", txbytes)
     print("Total rxvd bytes: ", rxbytes)
-    throughput_bytes = 8*1024*rxbytes/ seconds
-    throughput_bits = throughput_bytes
-    print("Average throughput (kbps): ", throughput_bits / 1024)
-    link_bandwidth_bits = (15*1024*1024)
-    print("Percent utilisation is: ", 100 * throughput_bits / link_bandwidth_bits)
+    txm = 8*1024*txbytes/ seconds
+    rcv = 8*1024*rxbytes/ seconds
+    print("Average throughput (kbps): ", rcv / 1024)
+    link_bandwidth_bits = 17695084.0889
+    print("Percent utilisation is: ", 100 * rcv / link_bandwidth_bits)
 
 
             #print("next switch")

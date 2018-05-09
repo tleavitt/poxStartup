@@ -2,4 +2,4 @@
 ('Total txmitted bytes:', 2750526)
 ('Total rxvd bytes: ', 3187359)
 ('Average throughput (kbps): ', 4551.338152610442)
-('Percent utilisation is: ', 29.631107764390897)
+('Percent utilisation is: ', 26.33822051852602)
