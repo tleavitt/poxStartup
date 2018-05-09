@@ -335,12 +335,14 @@ class Switch (EventMixin):
       # ethaddr seen at different place!
       if core.openflow_discovery.is_edge_port(switches[loc[0]].dpid, loc[1]):
         # New place is another "plain" port (probably)
-        log.info("%s moved from %s.%i to %s.%i?", packet.src,
-                  _dpid_to_str(switches[oldloc[0]].dpid), oldloc[1],
-                  _dpid_to_str(switches[loc[0]].dpid),    loc[1])
+        pass
+        # log.info("%s moved from %s.%i to %s.%i?", packet.src,
+        #           _dpid_to_str(switches[oldloc[0]].dpid), oldloc[1],
+        #           _dpid_to_str(switches[loc[0]].dpid),    loc[1])
         if packet.src.is_multicast == False:
-          mac_map[packet.src] = loc # Learn position for ethaddr
-          log.info("Learned %s at %s.%i", packet.src, loc[0], loc[1])
+          # mac_map[packet.src] = loc # Learn position for ethaddr
+          # log.info("Learned %s at %s.%i", packet.src, loc[0], loc[1])
+          pass
       elif packet.dst.is_multicast == False:
         # New place is a switch-to-switch port!
         # Hopefully, this is a packet we're flooding because we didn't

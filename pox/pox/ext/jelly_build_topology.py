@@ -217,21 +217,22 @@ def iperfPairs( opts, clients, servers ):
     info( '\n' )
     info( "*** Starting iperf clients\n" )
     for src, dest in plist:
-        # packet size: 8 kB by default
-        src.sendCmd( "sleep 1; iperf -t %s -i .5 -c %s -l %s" % (
-            opts.time, dest.IP(), opts.pkt_size) )
+        src.sendCmd( "sleep 1; iperf -t %s -i .5 -c %s -l %s -P %s" % (
+            opts.time, dest.IP(), opts.pkt_size, opts.n_flows) )
     info( '*** Running cpu and packet count monitor\n' )
     startTime = int( time() )
     cmd = "./packetcount %s .5" % ( opts.time + 2 )
     stats = quietRun( cmd  )
     intfEntries, cpuEntries = parseIntfStats( startTime, stats )
-    info( "*** Waiting for clients to complete\n" )
+    info( "*** Killing clients...\n" )
     results = []
     for src, dest in plist:
-        result = src.waitOutput()
-        dest.cmd( "kill -9 %iperf" )
+        # result = src.waitOutput()
+        # src.cmd( "kill -9 %iperf" )
+        # src.cmd( "wait" )
+        # dest.cmd( "kill -9 %iperf" )
         # Wait for iperf server to terminate
-        dest.cmd( "wait" )
+        # dest.cmd( "wait" )
         # We look at the stats for the remote side of the destination's
         # default intf, as it is 1) now in the root namespace and easy to
         # read and 2) guaranteed by the veth implementation to have
@@ -265,8 +266,9 @@ def initOutput( opts ):
 
 class Opts:
     counts = 1
+    n_flows = 8
     time = 20
-    outfile = os.path.abspath('./iperf_results/ksp8_N50_n10_r10_lr15M_pkts8K')
+    outfile = os.path.abspath('./iperf_results/ksp8_N50_n10_r10_flow8_lr15M_pkts8K')
     linkopts = dict(bw=15, delay='2ms', loss=0)
     pkt_size = '8K'
 
@@ -309,7 +311,7 @@ def runJellyfishLink():
 
         net.start()
         intervals, cpuEntries = iperfPairs( opts, clients, servers )
-        net.stop()
+        # net.stop()
         # Write output incrementally in case of failure
         result = { 'it': it, 'results': intervals,
             cpuHeader: cpuEntries }
