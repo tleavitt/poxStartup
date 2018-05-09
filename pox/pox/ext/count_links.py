@@ -191,32 +191,25 @@ def add_link_plot(ax, link_counts, label, linestyle='--'):
     ax.plot(counts_list, label=label, linestyle=linestyle, linewidth=1.7)
 
 
-def main():
-    # N = 2; n = 2; r = 2
-    # N = 4; n = 4; r = 3
-    # N = 10; n = 10; r = 8
-    # N = 20; n = 20; r = 8
-    N = 245; n = 686; r = 48
-    # N = 98; n = 50; r = 10
-    # N = 343; n = 343; r = 14
-    # N = 245 - 94; n = 686 + 94; r = 25
+def main(N, n, r):
+
     adjs = create_irregular_jellyfish_graph(N, n, r) 
     # adjs = create_regular_jellyfish_graph(N, r, n) 
     
     fig, ax = plt.subplots() 
     print "Counting links for ecmp-8."
-    link_counts_8 = count_links_perm_traffic_dfs(adjs, N, n,
+    link_counts_8 = count_links_perm_traffic_fixed_paths(adjs, N, n,
                                  build_path_map = ecmp_path_builder(8))
     add_link_plot(ax, link_counts_8, "ECMP-8")
 
     print "Counting links for ecmp-64."
-    link_counts_64 = count_links_perm_traffic_dfs(adjs, N, n,
+    link_counts_64 = count_links_perm_traffic_fixed_paths(adjs, N, n,
                                  build_path_map = ecmp_path_builder(64))
     add_link_plot(ax, link_counts_64, "ECMP-64")
 
     print "Counting links for ksp-8."
     sys.stdout.flush()
-    link_counts_64 = count_links_perm_traffic_dfs(adjs, N, n,
+    link_counts_64 = count_links_perm_traffic_fixed_paths(adjs, N, n,
                                  build_path_map = ksp_path_builder(3))
     add_link_plot(ax, link_counts_64, "KSP-8", linestyle='-')
 
@@ -227,4 +220,12 @@ def main():
     plt.savefig('./fig9_N{}_n{}_r{}.png'.format(N, n, r), format='png')
 
 if __name__ == '__main__':
-    main()
+    # N = 2; n = 2; r = 2
+    # N = 4; n = 4; r = 3
+    # N = 10; n = 10; r = 8
+    # N = 20; n = 20; r = 8
+    # N = 245; n = 686; r = 48
+    N = 98; n = 50; r = 10
+    # N = 343; n = 343; r = 14
+    # N = 245 - 94; n = 686 + 94; r = 25
+    main(N, n, r)
