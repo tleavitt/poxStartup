@@ -3,7 +3,7 @@ import pdb
 
 
 # with open('ecmp8_N50.json', 'r') as f:
-with open('ksp8.json', 'r') as f:
+with open('ecmp8_N50_n10_r10_flow8_lr15M_pkts8K', 'r') as f:
 #with open('ecmp64.json', 'r') as f:
 #with open('ecmp64_N50_n10_r10_lr15M_pkts8K', 'r') as f:
 #with open('ecmp8_N100_n10_r10.pretty', 'r') as f:
