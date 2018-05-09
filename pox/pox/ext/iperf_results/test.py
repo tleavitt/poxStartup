@@ -1,12 +1,14 @@
 import json
+import pdb
 
-
-
-with open('ecmp8_N50.json', 'r') as f:
+throughputs = {}
+# with open('ecmp8_N50.json', 'r') as f:
+with open('ksp8.json', 'r') as f:
 #with open('ecmp64_N50_n10_r10_lr15M_pkts8K', 'r') as f:
 #with open('ecmp8_N100_n10_r10.pretty', 'r') as f:
 #with open('ecmp8_N100_n10_r10.pretty', 'r') as f:
     distros_dict = json.load(f)
+    #pdb.set_trace()
     #arr = distros_dict
     #print(arr['results'])
     seconds = 0
@@ -14,26 +16,34 @@ with open('ecmp8_N50.json', 'r') as f:
     rxbytes = 0
     for item in distros_dict:
         for result in item['results']:
-            for dest in result["dest"]:
+            dest = result["dest"]
 
-                seconds = 0
-                txbytes = 0
-                rxbytes = 0
-                for dest_stats in result['destStats(seconds,txbytes,rxbytes)']:
-                    seconds += dest_stats[0]
-                    txbytes += dest_stats[1]
-                    rxbytes += dest_stats[2]
+            #if not dest in throughputs:
+            #    throughputs[dest] = []
 
-                print(dest,)
-                print(seconds)
-                print(txbytes)
-                print(rxbytes)
+            #seconds = 0
+            #txbytes = 0
+            #rxbytes = 0
+            for dest_stats in result['destStats(seconds,txbytes,rxbytes)']:
+                seconds += dest_stats[0]
+                txbytes += dest_stats[1]
+                rxbytes += dest_stats[2]
+
+            #print(dest)
+    print("Total seconds:", seconds)
+    print("Total txmitted bytes:", txbytes)
+    print("Total rxvd bytes: ", rxbytes)
+    throughput_bytes = 8*1024*rxbytes/ seconds
+    throughput_bits = 8 * throughput_bytes
+    print("Average throughput (kbps): ", throughput_bits / 1024)
+    link_bandwidth_bits = (15*1024*1024)
+    print("Percent utilisation is: ", 100 * throughput_bits / link_bandwidth_bits)
 
 
-                print("next switch")
+            #print("next switch")
 
 # pair_intervals results
-{}
+#{}
 
 
              
