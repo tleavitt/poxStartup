@@ -259,8 +259,8 @@ def initOutput( opts ):
     "Initialize an output file"
     name = opts.outfile
     f =  open( name, 'w') if name else sys.stdout
-    print >>f, '# pair_intervals results'
-    print >>f, dumps( opts.__dict__ )
+    # print >>f, '# pair_intervals results'
+    # print >>f, dumps( opts.__dict__ )
     if name:
         f.close()
 
@@ -268,9 +268,20 @@ class Opts:
     counts = 1
     n_flows = 8
     time = 20
-    outfile = os.path.abspath('./iperf_results/ksp8_N50_n10_r10_flow8_lr15M_pkts8K')
+    outfile = os.path.abspath('./iperf_results/example.json')
     linkopts = dict(bw=15, delay='2ms', loss=0)
     pkt_size = '8K'
+
+def build_dummy_topo(net):
+    nodes = []
+    for dpid in [1, 2]:
+        n = net.addSwitch('s{}'.format(int(dpid)), dpid=int2dpid(dpid))
+        of_addr = dpid_port_to_mac(dpid, 1)
+        n.config(mac=of_addr)
+        n.intfList()[0].setMAC(of_addr)
+        nodes.append(n)
+
+    net.addLink( nodes[0], nodes[1], port1 = 2, port2 = 2)
 
 
 def runJellyfishLink():
@@ -285,7 +296,9 @@ def runJellyfishLink():
             controller=RemoteController,
             ip='127.0.0.1',
             port=6633) 
-    buildJellyFishTopo(net, opts.linkopts)
+    # buildJellyFishTopo(net, opts.linkopts)
+    build_dummy_topo(net)
+
 
     # print "Dumping switch connections"
     # dumpNodeConnections(net.switches)
